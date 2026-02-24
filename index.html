@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DocuScan Pro</title>
-
+    
+    <!-- Web App Manifest for PWA -->
     <link rel="manifest" href="./manifest.json">
     
     <!-- Tailwind CSS -->
@@ -17,10 +18,18 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
-        body { -webkit-tap-highlight-color: transparent; }
+        html, body { 
+            -webkit-tap-highlight-color: transparent; 
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            height: 100dvh; /* Dynamically sizes to mobile screen, ignoring address bars */
+            overflow: hidden; /* Completely prevents scrolling */
+            overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+        }
         .hide { display: none !important; }
         
-        /* Toast Animation */
+        /* Toast animations */
         @keyframes slideUp {
             from { transform: translateY(100%); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
@@ -44,6 +53,16 @@
         <!-- View 1: Camera View -->
         <div id="cameraView" class="flex-1 flex flex-col relative">
             <div class="flex-1 bg-black relative overflow-hidden flex items-center justify-center">
+                
+                <!-- Start Camera Overlay -->
+                <div id="startCameraOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20">
+                    <i class="ph ph-scan text-6xl text-gray-500 mb-4"></i>
+                    <p class="text-gray-400 mb-6 text-center px-6">Ready to scan your documents?</p>
+                    <button id="startCameraOverlayBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 shadow-lg transition">
+                        <i class="ph ph-camera text-2xl"></i> Open Camera
+                    </button>
+                </div>
+
                 <video id="videoElement" class="w-full h-full object-cover" autoplay playsinline></video>
                 
                 <!-- Top Right Camera Controls -->
@@ -186,6 +205,8 @@
         const fileInput = document.getElementById('fileInput');
         const pageCountBadge = document.getElementById('pageCountBadge');
         const thumbnailStrip = document.getElementById('thumbnailStrip');
+        const startCameraOverlay = document.getElementById('startCameraOverlay');
+        const startCameraOverlayBtn = document.getElementById('startCameraOverlayBtn');
 
         // ==========================================
         // UI Helpers
@@ -238,6 +259,7 @@
                     audio: false
                 });
                 videoElement.srcObject = currentStream;
+                startCameraOverlay.classList.add('hide'); // Hide overlay once started
             } catch (err) {
                 console.error("Error accessing camera:", err);
                 showToast("Camera access denied or unavailable. You can still upload from gallery.", "error");
@@ -250,6 +272,8 @@
                 currentStream = null;
             }
         }
+
+        startCameraOverlayBtn.addEventListener('click', startCamera);
 
         document.getElementById('switchCameraBtn').addEventListener('click', () => {
             facingMode = facingMode === 'environment' ? 'user' : 'environment';
@@ -500,7 +524,8 @@
         // ==========================================
         
         window.onload = function () {
-            startCamera(); // Start camera on load
+            // Camera no longer starts automatically on load.
+            // User will initiate it via the Open Camera button.
         };
 
         async function uploadToDrive(blob, fileName, mimeType) {
@@ -537,7 +562,7 @@
 
         document.getElementById('driveBtn').addEventListener('click', async () => {
             if (pages.length === 0) return showToast("No document to upload", "error");
-            if (GOOGLE_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec') {
+            if (GOOGLE_SCRIPT_URL === 'YOUR_WEB_APP_URL_HERE') {
                 return showToast("Please configure GOOGLE_SCRIPT_URL in the code first.", "error");
             }
 
@@ -566,11 +591,20 @@
             }
         });
 
+        // ==========================================
+        // PWA Service Worker Registration
+        // ==========================================
+        if('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
     </script>
-    
-<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
-    
 </body>
-
 </html>
-
