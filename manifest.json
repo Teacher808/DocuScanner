@@ -1,0 +1,23 @@
+{
+  "name": "DocuScan Pro",
+  "short_name": "DocuScan",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [{"src": "https://cdn-icons-png.flaticon.com/512/3135/3135692.png", "sizes": "512x512", "type": "image/png"}]
+}
+*(You will need to add `<link rel="manifest" href="./manifest.json">` to the `<head>` of your `index.html`)*
+
+**2. Create `sw.js` (Service Worker):**
+```javascript
+// Simple offline caching
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open('docuscan-v1').then((cache) => cache.addAll(['./index.html', './manifest.json'])));
+});
+self.addEventListener('fetch', (e) => {
+  e.respondWith(caches.match(e.request).then((response) => response || fetch(e.request)));
+});
+*(Add `<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>` to the bottom of your `index.html`)*
+
+Once hosted on GitHub pages, simply visit the URL on your Android phone, tap the browser menu, and select **"Add to Home Screen"**. You now have a native-feeling, offline scanner that leverages the native OS for sharing (Bluetooth/Messenger) and connects seamlessly to Google Drive!

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DocuScan Pro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .hide { display: none !important; }
+        
+        /* Toast Animation */
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .toast-animate { animation: slideUp 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="bg-gray-800 p-4 flex justify-between items-center shadow-md z-10 relative">
+        <div class="flex items-center gap-2">
+            <i class="ph ph-scan text-blue-400 text-2xl"></i>
+            <h1 class="text-xl font-bold tracking-tight">DocuScan</h1>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 relative flex flex-col">
+        
+        <!-- View 1: Camera View -->
+        <div id="cameraView" class="flex-1 flex flex-col relative">
+            <div class="flex-1 bg-black relative overflow-hidden flex items-center justify-center">
+                <video id="videoElement" class="w-full h-full object-cover" autoplay playsinline></video>
+                
+                <!-- Top Right Camera Controls -->
+                <div class="absolute top-4 right-4 z-10">
+                    <button id="switchCameraBtn" class="p-3 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 transition">
+                        <i class="ph ph-camera-rotate text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Target Reticle -->
+                <div class="absolute inset-8 border-2 border-white/30 border-dashed rounded-xl pointer-events-none flex flex-col justify-between p-4">
+                    <div class="flex justify-between"><div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div><div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div></div>
+                    <div class="flex justify-between"><div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div><div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div></div>
+                </div>
+            </div>
+
+            <!-- Camera Controls -->
+            <div class="h-32 bg-gray-900 flex items-center justify-around px-6 pb-6 pt-2">
+                <button id="openGalleryBtn" class="p-3 bg-gray-800 rounded-full hover:bg-gray-700 transition relative">
+                    <i class="ph ph-image text-2xl"></i>
+                    <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+                </button>
+                <button id="captureBtn" class="w-16 h-16 bg-white rounded-full border-4 border-gray-400 focus:outline-none hover:bg-gray-200 transition shadow-[0_0_15px_rgba(255,255,255,0.3)]"></button>
+                <button id="reviewBtn" class="p-3 bg-gray-800 rounded-full hover:bg-gray-700 transition relative flex items-center justify-center">
+                    <i class="ph ph-check-circle text-2xl text-blue-400"></i>
+                    <span id="pageCountBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hide">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- View 2: Preview & Export View -->
+        <div id="previewView" class="flex-1 flex flex-col hide bg-gray-900">
+            <div class="flex-1 p-4 flex flex-col items-center justify-center bg-gray-800 overflow-hidden relative">
+                <!-- Main Preview Image -->
+                <div class="flex-1 w-full flex items-center justify-center min-h-0 relative mb-4">
+                    <img id="previewImage" class="max-w-full max-h-full rounded-lg shadow-xl object-contain" src="" alt="Captured scan">
+                    <div class="absolute top-2 right-2 flex gap-2">
+                        <button id="retakePageBtn" class="bg-blue-600/80 hover:bg-blue-600 text-white p-2 rounded-full backdrop-blur-md transition shadow-lg" title="Retake Page">
+                            <i class="ph ph-camera text-lg"></i>
+                        </button>
+                        <button id="deletePageBtn" class="bg-red-600/80 hover:bg-red-600 text-white p-2 rounded-full backdrop-blur-md transition shadow-lg" title="Delete Page">
+                            <i class="ph ph-trash text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Multi-page Thumbnail Strip -->
+                <div id="thumbnailStrip" class="w-full h-20 flex gap-3 overflow-x-auto pb-2 snap-x px-2">
+                    <!-- Thumbnails injected via JS -->
+                </div>
+                
+                <canvas id="canvasElement" class="hide"></canvas>
+            </div>
+
+            <!-- Export Controls -->
+            <div class="bg-gray-900 p-4 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.3)] flex flex-col gap-4">
+                
+                <div class="flex justify-between items-center mb-2">
+                    <button id="addPageBtn" class="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium bg-blue-400/10 px-3 py-1.5 rounded-full transition">
+                        <i class="ph ph-plus-circle text-lg"></i> Add Pages
+                    </button>
+                    <div class="text-sm font-medium text-gray-300">Save Locally</div>
+                    <div class="w-24"></div> <!-- Spacer for flex alignment -->
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <!-- Save Local -->
+                    <div class="flex flex-col gap-2">
+                        <button onclick="saveLocal('png')" class="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition">
+                            <i class="ph ph-file-png text-2xl text-green-400"></i>
+                            <span class="text-xs font-medium">PNG</span>
+                        </button>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="saveLocal('jpeg')" class="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition">
+                            <i class="ph ph-file-jpg text-2xl text-blue-400"></i>
+                            <span class="text-xs font-medium">JPG</span>
+                        </button>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="saveLocal('pdf')" class="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition relative overflow-hidden">
+                            <div class="absolute inset-0 bg-red-500/10"></div>
+                            <i class="ph ph-file-pdf text-2xl text-red-400 relative z-10"></i>
+                            <span class="text-xs relative z-10 font-bold">PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="border-gray-700 my-1">
+
+                <div class="flex justify-between items-center">
+                    <div class="text-sm font-medium text-gray-300">Share & Cloud</div>
+                    <select id="exportFormat" class="bg-gray-800 text-white text-xs border border-gray-600 rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition">
+                        <option value="pdf">Send as PDF</option>
+                        <option value="jpeg">Send as Image(s)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mt-1">
+                    <!-- Share via Android Share Sheet -->
+                    <button id="shareBtn" class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl flex items-center justify-center gap-2 transition font-medium">
+                        <i class="ph ph-share-network text-xl"></i>
+                        <span>Share</span>
+                    </button>
+                    
+                    <!-- Save to Drive -->
+                    <button id="driveBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl flex items-center justify-center gap-2 transition font-medium">
+                        <i class="ph ph-google-drive-logo text-xl"></i>
+                        <span>Save to Drive</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-4 left-0 right-0 flex flex-col items-center pointer-events-none z-50 gap-2 px-4"></div>
+
+    <script>
+        /**
+         * CONFIGURATION
+         * Replace this with your Google Apps Script Web App URL.
+         */
+        const GOOGLE_SCRIPT_URL = 'YOUR_WEB_APP_URL_HERE';
+        
+        // App State
+        let currentStream = null;
+        let facingMode = 'environment'; // Back camera by default
+        let pages = []; // Array to hold multiple scanned pages { dataUrl, width, height }
+        let currentPageIndex = 0;
+        let retakePageIndex = null;
+        let accessToken = null;
+
+        // DOM Elements
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('canvasElement');
+        const previewImage = document.getElementById('previewImage');
+        const cameraView = document.getElementById('cameraView');
+        const previewView = document.getElementById('previewView');
+        const fileInput = document.getElementById('fileInput');
+        const pageCountBadge = document.getElementById('pageCountBadge');
+        const thumbnailStrip = document.getElementById('thumbnailStrip');
+
+        // ==========================================
+        // UI Helpers
+        // ==========================================
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-green-600',
+                error: 'bg-red-600',
+                info: 'bg-gray-700'
+            };
+            toast.className = `${colors[type]} text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium toast-animate pointer-events-auto`;
+            toast.textContent = message;
+            
+            const container = document.getElementById('toastContainer');
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(100%)';
+                toast.style.transition = 'all 0.3s ease-in';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function switchView(view) {
+            if (view === 'camera') {
+                cameraView.classList.remove('hide');
+                previewView.classList.add('hide');
+                startCamera();
+            } else {
+                cameraView.classList.add('hide');
+                previewView.classList.remove('hide');
+                stopCamera();
+            }
+        }
+
+        // ==========================================
+        // Camera Engine
+        // ==========================================
+        async function startCamera() {
+            stopCamera(); // Stop any existing streams
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: facingMode,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                });
+                videoElement.srcObject = currentStream;
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                showToast("Camera access denied or unavailable. You can still upload from gallery.", "error");
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
+
+        document.getElementById('switchCameraBtn').addEventListener('click', () => {
+            facingMode = facingMode === 'environment' ? 'user' : 'environment';
+            startCamera();
+        });
+
+        // ==========================================
+        // Capture & Import Logic
+        // ==========================================
+        function captureImage(imageSource, width, height) {
+            canvasElement.width = width;
+            canvasElement.height = height;
+            const ctx = canvasElement.getContext('2d');
+            ctx.drawImage(imageSource, 0, 0, width, height);
+            
+            // Store as high-quality JPEG to manage memory across multiple pages
+            const dataUrl = canvasElement.toDataURL('image/jpeg', 0.95);
+            
+            if (retakePageIndex !== null) {
+                pages[retakePageIndex] = { dataUrl, width, height };
+                showToast(`Page ${retakePageIndex + 1} retaken!`);
+                const indexToSelect = retakePageIndex;
+                retakePageIndex = null; // Reset retake state
+                
+                // Switch back to preview to see the retaken image
+                switchView('preview');
+                renderThumbnails();
+                selectPage(indexToSelect);
+            } else {
+                pages.push({ dataUrl, width, height });
+                
+                // Update UI Counter
+                pageCountBadge.textContent = pages.length;
+                pageCountBadge.classList.remove('hide');
+                
+                showToast(`Page ${pages.length} captured!`);
+            }
+        }
+
+        document.getElementById('captureBtn').addEventListener('click', () => {
+            if (!videoElement.videoWidth) return;
+            // Add a quick flash effect
+            const flash = document.createElement('div');
+            flash.className = 'absolute inset-0 bg-white opacity-50 z-50 transition-opacity duration-300';
+            cameraView.appendChild(flash);
+            setTimeout(() => flash.remove(), 300);
+
+            captureImage(videoElement, videoElement.videoWidth, videoElement.videoHeight);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const img = new Image();
+                img.onload = () => captureImage(img, img.width, img.height);
+                img.src = URL.createObjectURL(file);
+            }
+        });
+
+        document.getElementById('reviewBtn').addEventListener('click', () => {
+            if (pages.length === 0) {
+                return showToast("Please capture at least one page.", "error");
+            }
+            
+            // Cancel retake if user clicks review instead of capturing
+            if (retakePageIndex !== null) {
+                retakePageIndex = null;
+            }
+            
+            switchView('preview');
+            renderThumbnails();
+            selectPage(currentPageIndex);
+        });
+
+        document.getElementById('addPageBtn').addEventListener('click', () => {
+            retakePageIndex = null; // Ensure we are appending new pages
+            switchView('camera');
+        });
+
+        document.getElementById('retakePageBtn').addEventListener('click', () => {
+            retakePageIndex = currentPageIndex;
+            switchView('camera');
+            showToast(`Retaking page ${retakePageIndex + 1}`, "info");
+        });
+
+        // ==========================================
+        // Multi-page UI Logic
+        // ==========================================
+        function renderThumbnails() {
+            thumbnailStrip.innerHTML = '';
+            pages.forEach((page, index) => {
+                const thumb = document.createElement('img');
+                thumb.src = page.dataUrl;
+                thumb.className = `h-full w-auto object-cover rounded-md cursor-pointer border-2 transition-all ${index === currentPageIndex ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
+                thumb.onclick = () => selectPage(index);
+                thumbnailStrip.appendChild(thumb);
+            });
+        }
+
+        function selectPage(index) {
+            if (pages.length === 0) return;
+            currentPageIndex = index;
+            previewImage.src = pages[index].dataUrl;
+            renderThumbnails(); // Re-render to update selected border
+        }
+
+        document.getElementById('deletePageBtn').addEventListener('click', () => {
+            pages.splice(currentPageIndex, 1);
+            if (pages.length === 0) {
+                pageCountBadge.classList.add('hide');
+                pageCountBadge.textContent = '0';
+                switchView('camera');
+            } else {
+                pageCountBadge.textContent = pages.length;
+                selectPage(Math.max(0, currentPageIndex - 1));
+            }
+        });
+
+        // ==========================================
+        // Export & Conversion Engine (Local)
+        // ==========================================
+        async function getPDFBlob() {
+            const { jsPDF } = window.jspdf;
+            let doc;
+            
+            pages.forEach((page, index) => {
+                const orientation = page.width > page.height ? 'l' : 'p';
+                if (index === 0) {
+                    doc = new jsPDF({ orientation: orientation, unit: 'px', format: [page.width, page.height] });
+                } else {
+                    doc.addPage([page.width, page.height], orientation);
+                }
+                doc.addImage(page.dataUrl, 'JPEG', 0, 0, page.width, page.height);
+            });
+            
+            return doc.output('blob');
+        }
+
+        async function saveLocal(format) {
+            if (pages.length === 0) return;
+            
+            const timestamp = new Date().getTime();
+            let fileName = `DocuScan_${timestamp}`;
+
+            if (format === 'pdf') {
+                try {
+                    showToast("Generating PDF...", "info");
+                    const pdfBlob = await getPDFBlob();
+                    
+                    // Create download link for PDF Blob
+                    const url = URL.createObjectURL(pdfBlob);
+                    const link = document.createElement('a');
+                    link.download = `${fileName}.pdf`;
+                    link.href = url;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    showToast("PDF saved locally!", "success");
+                } catch (e) {
+                    console.error(e);
+                    showToast("Failed to generate PDF", "error");
+                }
+                return;
+            }
+
+            // For PNG and JPEG (Current page only)
+            const currentPage = pages[currentPageIndex];
+            let dataUrl = currentPage.dataUrl;
+            
+            if (format === 'png') {
+                // Convert stored JPEG back to PNG via canvas
+                const img = new Image();
+                img.src = currentPage.dataUrl;
+                await new Promise(r => img.onload = r);
+                canvasElement.width = img.width;
+                canvasElement.height = img.height;
+                canvasElement.getContext('2d').drawImage(img, 0, 0);
+                dataUrl = canvasElement.toDataURL('image/png');
+                fileName += `_page${currentPageIndex + 1}.png`;
+            } else if (format === 'jpeg') {
+                fileName += `_page${currentPageIndex + 1}.jpg`;
+            }
+
+            // Create temporary download link
+            const link = document.createElement('a');
+            link.download = fileName;
+            link.href = dataUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast(`${format.toUpperCase()} saved locally!`, "success");
+        }
+
+        // ==========================================
+        // Native Web Sharing (Bluetooth, Messenger, Email)
+        // ==========================================
+        document.getElementById('shareBtn').addEventListener('click', async () => {
+            if (pages.length === 0) return showToast("No document to share", "error");
+
+            const format = document.getElementById('exportFormat').value;
+            const timestamp = new Date().getTime();
+            
+            try {
+                let filesToShare = [];
+                let titleText = '';
+
+                if (format === 'pdf') {
+                    showToast("Preparing PDF...", "info");
+                    const pdfBlob = await getPDFBlob();
+                    const file = new File([pdfBlob], `DocuScan_${timestamp}.pdf`, { type: 'application/pdf' });
+                    filesToShare = [file];
+                    titleText = pages.length > 1 ? 'Scanned Multi-page Document (PDF)' : 'Scanned Document (PDF)';
+                } else {
+                    showToast("Preparing Image(s)...", "info");
+                    titleText = 'Scanned Image(s)';
+                    for (let i = 0; i < pages.length; i++) {
+                        const res = await fetch(pages[i].dataUrl);
+                        const blob = await res.blob();
+                        const fileName = pages.length > 1 ? `DocuScan_${timestamp}_page${i+1}.jpg` : `DocuScan_${timestamp}.jpg`;
+                        filesToShare.push(new File([blob], fileName, { type: 'image/jpeg' }));
+                    }
+                }
+
+                if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
+                    await navigator.share({
+                        files: filesToShare,
+                        title: titleText,
+                        text: 'Here is a document I scanned using DocuScan.'
+                    });
+                    showToast("Shared successfully", "success");
+                } else {
+                    showToast("Web Share API not supported for this file type/amount on this device.", "error");
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Share failed:', error);
+                    showToast("Failed to share", "error");
+                }
+            }
+        });
+
+        // ==========================================
+        // Google Drive Integration Engine
+        // ==========================================
+        // Google Drive Integration Engine (Apps Script)
+        // ==========================================
+        
+        window.onload = function () {
+            startCamera(); // Start camera on load
+        };
+
+        async function uploadToDrive(blob, fileName, mimeType) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64data = reader.result;
+                    
+                    try {
+                        const response = await fetch(GOOGLE_SCRIPT_URL, {
+                            method: 'POST',
+                            // text/plain prevents CORS preflight issues with Google Apps Script
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({
+                                fileName: fileName,
+                                mimeType: mimeType,
+                                base64: base64data
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            resolve(result);
+                        } else {
+                            reject(new Error(result.message));
+                        }
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        document.getElementById('driveBtn').addEventListener('click', async () => {
+            if (pages.length === 0) return showToast("No document to upload", "error");
+            if (GOOGLE_SCRIPT_URL === 'YOUR_WEB_APP_URL_HERE') {
+                return showToast("Please configure GOOGLE_SCRIPT_URL in the code first.", "error");
+            }
+
+            const format = document.getElementById('exportFormat').value;
+            const timestamp = new Date().getTime();
+
+            try {
+                if (format === 'pdf') {
+                    showToast("Uploading PDF to Drive...", "info");
+                    const pdfBlob = await getPDFBlob();
+                    await uploadToDrive(pdfBlob, `DocuScan_${timestamp}.pdf`, 'application/pdf');
+                    showToast("PDF uploaded successfully!", "success");
+                } else {
+                    showToast(`Uploading ${pages.length} image(s) to Drive...`, "info");
+                    for (let i = 0; i < pages.length; i++) {
+                        const res = await fetch(pages[i].dataUrl);
+                        const blob = await res.blob();
+                        const fileName = pages.length > 1 ? `DocuScan_${timestamp}_page${i+1}.jpg` : `DocuScan_${timestamp}.jpg`;
+                        await uploadToDrive(blob, fileName, 'image/jpeg');
+                    }
+                    showToast("Image(s) uploaded successfully!", "success");
+                }
+            } catch (error) {
+                console.error("Upload error:", error);
+                showToast("Failed to upload. Check console or Script URL.", "error");
+            }
+        });
+
+    </script>
+</body>
+</html>
