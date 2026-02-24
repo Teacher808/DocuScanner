@@ -535,7 +535,7 @@
 
         document.getElementById('driveBtn').addEventListener('click', async () => {
             if (pages.length === 0) return showToast("No document to upload", "error");
-            if (GOOGLE_SCRIPT_URL === 'YOUR_WEB_APP_URL_HERE') {
+            if (GOOGLE_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec') {
                 return showToast("Please configure GOOGLE_SCRIPT_URL in the code first.", "error");
             }
 
@@ -566,4 +566,5 @@
 
     </script>
 </body>
+
 </html>
