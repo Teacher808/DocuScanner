@@ -14,6 +14,10 @@
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
+    <!-- Cropper.js for Image Cropping -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
     <style>
         html, body { 
             width: 100%; height: 100%; margin: 0; padding: 0;
@@ -23,28 +27,32 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        /* Custom Scrollbar for thumbnails */
+        /* Custom Scrollbar */
         .thumb-scroll::-webkit-scrollbar { height: 6px; }
         .thumb-scroll::-webkit-scrollbar-track { background: transparent; }
         .thumb-scroll::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 4px; }
 
-        @keyframes slideUp {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .slide-up { animation: slideUp 0.3s ease-out forwards; }
         
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+
+        /* Filter Preview Classes */
+        .filter-grayscale { filter: grayscale(100%); }
+        .filter-bw { filter: grayscale(100%) contrast(250%); }
+
+        /* Camera Flash Overlay */
+        #flashOverlay {
+            transition: opacity 0.1s ease-out;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="flex flex-col relative text-gray-100">
 
-    <!-- Toast Notification System -->
-    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full text-sm font-semibold shadow-lg transition-all duration-300 opacity-0 pointer-events-none flex items-center gap-2">
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full text-sm font-semibold shadow-lg transition-all duration-300 opacity-0 pointer-events-none flex items-center gap-2">
         <i id="toastIcon" class="ph text-lg"></i>
         <span id="toastMsg">Notification</span>
     </div>
@@ -97,17 +105,24 @@
                 <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm" id="userInitial">U</div>
                 <span class="font-medium text-sm drop-shadow-md" id="displayUsername">User</span>
             </div>
-            <button id="logoutBtn" class="text-gray-300 hover:text-white p-2">
-                <i class="ph ph-sign-out text-xl"></i>
-            </button>
+            <div class="flex gap-4">
+                <!-- Flash Toggle Button -->
+                <button id="flashBtn" class="hidden text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md">
+                    <i class="ph ph-lightning-slash text-xl" id="flashIcon"></i>
+                </button>
+                <button id="logoutBtn" class="text-gray-300 hover:text-white p-2">
+                    <i class="ph ph-sign-out text-xl"></i>
+                </button>
+            </div>
         </header>
 
         <!-- Camera Viewfinder -->
-        <main class="flex-1 relative overflow-hidden flex items-center justify-center">
+        <main class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
             <video id="cameraFeed" autoplay playsinline class="w-full h-full object-cover"></video>
+            <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 z-30"></div>
             
             <!-- Scanning Overlay Grid -->
-            <div class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-4">
+            <div class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
                 <div class="flex justify-between w-full">
                     <div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
                     <div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
@@ -119,21 +134,17 @@
             </div>
         </main>
 
-        <!-- Hidden Canvas for capturing -->
         <canvas id="captureCanvas" class="hidden"></canvas>
 
         <!-- Bottom Controls -->
         <footer class="bg-gray-900 rounded-t-3xl p-6 pb-8 flex flex-col gap-6 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-            
             <!-- Thumbnails Strip -->
-            <div class="h-20 w-full">
+            <div class="h-20 w-full relative">
                 <div id="thumbnailContainer" class="flex gap-3 overflow-x-auto thumb-scroll h-full items-center pb-2">
                     <p id="emptyThumbMsg" class="text-gray-500 text-sm italic w-full text-center">No pages scanned yet</p>
-                    <!-- Thumbnails go here -->
                 </div>
             </div>
 
-            <!-- Action Buttons -->
             <div class="flex items-center justify-between">
                 <button id="exportPdfBtn" class="flex flex-col items-center gap-1 text-gray-400 hover:text-white disabled:opacity-50" disabled>
                     <div class="bg-gray-800 p-3 rounded-full"><i class="ph ph-file-pdf text-xl"></i></div>
@@ -154,8 +165,47 @@
         </footer>
     </div>
 
-    <!-- Save Dialog Modal -->
-    <div id="saveModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+    <!-- 3. IMAGE EDIT / CROP SCREEN -->
+    <div id="editScreen" class="hidden absolute inset-0 z-50 bg-black flex flex-col fade-in">
+        <header class="p-4 bg-gray-900 flex justify-between items-center shadow-md z-10">
+            <button id="cancelEditBtn" class="text-gray-400 hover:text-white flex items-center gap-1">
+                <i class="ph ph-x text-xl"></i> Cancel
+            </button>
+            <span class="font-semibold text-sm">Crop & Filter</span>
+            <button id="saveEditBtn" class="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1">
+                <i class="ph ph-check text-xl"></i> Done
+            </button>
+        </header>
+
+        <main class="flex-1 relative bg-gray-800 overflow-hidden flex items-center justify-center p-4">
+            <!-- Cropper JS Container -->
+            <img id="editImage" src="" class="max-w-full max-h-full hidden">
+        </main>
+
+        <footer class="p-6 bg-gray-900 flex justify-center gap-6">
+            <button class="filter-btn flex flex-col items-center gap-2 text-blue-400" data-filter="original">
+                <div class="w-12 h-12 rounded-full border-2 border-current overflow-hidden">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="w-full h-full object-cover bg-gray-500">
+                </div>
+                <span class="text-xs font-medium">Original</span>
+            </button>
+            <button class="filter-btn flex flex-col items-center gap-2 text-gray-400 hover:text-gray-200" data-filter="grayscale">
+                <div class="w-12 h-12 rounded-full border-2 border-transparent overflow-hidden">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="w-full h-full object-cover bg-gray-500 filter-grayscale">
+                </div>
+                <span class="text-xs font-medium">Grayscale</span>
+            </button>
+            <button class="filter-btn flex flex-col items-center gap-2 text-gray-400 hover:text-gray-200" data-filter="bw">
+                <div class="w-12 h-12 rounded-full border-2 border-transparent overflow-hidden">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="w-full h-full object-cover bg-gray-500 filter-bw">
+                </div>
+                <span class="text-xs font-medium">B & W</span>
+            </button>
+        </footer>
+    </div>
+
+    <!-- 4. SAVE MODAL -->
+    <div id="saveModal" class="hidden fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
         <div class="bg-gray-800 rounded-2xl w-full max-w-sm p-6 border border-gray-700 slide-up">
             <h2 class="text-xl font-bold mb-4">Save to Google Drive</h2>
             <label class="block text-xs text-gray-400 mb-1">Document Title</label>
@@ -174,7 +224,6 @@
         // ==========================================
         // ⚠️ CONFIGURATION REQUIRED ⚠️
         // ==========================================
-        // Paste your Google Apps Script Web App URL below:
         const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySF1GPjOnzpKZNLy0bu0pxE5Xl9wOyxInSdBXbzW-d2CS67fDeOfw8wSxciq4uJni7Zg/exec"; 
         
         // ==========================================
@@ -182,7 +231,9 @@
         // ==========================================
         let currentUser = null;
         let stream = null;
+        let videoTrack = null;
         let scannedPages = []; // Array of base64 images
+        let flashMode = 'off'; // 'off', 'on', 'auto'
 
         // Elements
         const el = (id) => document.getElementById(id);
@@ -198,7 +249,8 @@
         const exportPdfBtn = el('exportPdfBtn');
         const uploadDriveBtn = el('uploadDriveBtn');
         const logoutBtn = el('logoutBtn');
-        const saveModal = el('saveModal');
+        const flashBtn = el('flashBtn');
+        const flashIcon = el('flashIcon');
 
         // ==========================================
         // UTILS: TOAST NOTIFICATIONS
@@ -209,7 +261,7 @@
             const icon = el('toastIcon');
             el('toastMsg').innerText = msg;
             
-            toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full text-sm font-semibold shadow-xl transition-all duration-300 flex items-center gap-2`;
+            toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full text-sm font-semibold shadow-xl transition-all duration-300 flex items-center gap-2`;
             
             if (type === 'success') {
                 toast.classList.add('bg-green-500', 'text-white');
@@ -236,36 +288,29 @@
         // AUTHENTICATION LOGIC (Registration & Login)
         // ==========================================
         let isRegisterMode = false;
-        
         const togglePasswordBtn = el('togglePasswordBtn');
-        const togglePasswordIcon = el('togglePasswordIcon');
         const passwordInput = el('passwordInput');
-        
         const toggleAuthModeBtn = el('toggleAuthModeBtn');
-        const authSubmitText = el('authSubmitText');
-        const authSubmitIcon = el('authSubmitIcon');
-        const authModeText = el('authModeText');
-        const authSubtitle = el('authSubtitle');
 
         togglePasswordBtn.addEventListener('click', () => {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
-            togglePasswordIcon.className = type === 'password' ? 'ph ph-eye text-xl' : 'ph ph-eye-slash text-xl';
+            el('togglePasswordIcon').className = type === 'password' ? 'ph ph-eye text-xl' : 'ph ph-eye-slash text-xl';
         });
 
         toggleAuthModeBtn.addEventListener('click', () => {
             isRegisterMode = !isRegisterMode;
             if (isRegisterMode) {
-                authSubtitle.innerText = 'Create a new account';
-                authSubmitText.innerText = 'Register';
-                authSubmitIcon.className = 'ph ph-user-plus';
-                authModeText.innerText = 'Already have an account?';
+                el('authSubtitle').innerText = 'Create a new account';
+                el('authSubmitText').innerText = 'Register';
+                el('authSubmitIcon').className = 'ph ph-user-plus';
+                el('authModeText').innerText = 'Already have an account?';
                 toggleAuthModeBtn.innerText = 'Login here';
             } else {
-                authSubtitle.innerText = 'Login to sync scans to your Drive';
-                authSubmitText.innerText = 'Sign In';
-                authSubmitIcon.className = 'ph ph-sign-in';
-                authModeText.innerText = "Don't have an account?";
+                el('authSubtitle').innerText = 'Login to sync scans to your Drive';
+                el('authSubmitText').innerText = 'Sign In';
+                el('authSubmitIcon').className = 'ph ph-sign-in';
+                el('authModeText').innerText = "Don't have an account?";
                 toggleAuthModeBtn.innerText = 'Register here';
             }
         });
@@ -274,35 +319,23 @@
             e.preventDefault();
             const username = el('usernameInput').value.trim();
             const password = passwordInput.value.trim();
-            
             if (!username || !password) return;
 
             const btn = el('authSubmitBtn');
             const originalText = btn.innerHTML;
             
-            // Check if URL is configured
             if (!GOOGLE_APPS_SCRIPT_URL || GOOGLE_APPS_SCRIPT_URL === "YOUR_WEB_APP_URL_HERE") {
-                showToast("Please add your Google Apps Script URL in the code first!", "error");
-                return;
+                showToast("Please add your Google Apps Script URL in the code first!", "error"); return;
             }
 
-            // Show loading state
             btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Processing...';
             btn.disabled = true;
 
             try {
-                // Send request to Google Apps Script
-                const payload = {
-                    action: isRegisterMode ? 'register' : 'login',
-                    username: username,
-                    password: password
-                };
-
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ action: isRegisterMode ? 'register' : 'login', username, password })
                 });
-
                 const result = await response.json();
 
                 if (!result.success) {
@@ -310,33 +343,30 @@
                     return;
                 }
 
+                // If Registration is successful, automatically log them in
                 if (isRegisterMode) {
-                    // Registration Success
-                    showToast("Registration successful! You can now log in.", "success");
-                    toggleAuthModeBtn.click();
-                    passwordInput.value = ''; // clear password for security
+                    showToast("Registration successful! Logging you in...", "success");
                 } else {
-                    // Login Success
-                    currentUser = username;
-                    sessionStorage.setItem('docuscan_user', currentUser);
-                    
-                    // Update UI
-                    el('displayUsername').innerText = currentUser;
-                    el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
-                    
-                    // Switch Screens
-                    loginScreen.classList.add('hidden');
-                    mainApp.classList.remove('hidden');
-                    mainApp.classList.add('flex');
-                    
-                    showToast(`Welcome back, ${currentUser}!`, 'success');
-                    startCamera();
+                    showToast(`Welcome back, ${username}!`, 'success');
                 }
+
+                // Apply Login Data & Switch Screens
+                currentUser = username;
+                sessionStorage.setItem('docuscan_user', currentUser);
+                el('displayUsername').innerText = currentUser;
+                el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
+                
+                loginScreen.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                mainApp.classList.add('flex');
+                
+                passwordInput.value = ''; // clear for security
+                startCamera();
+
             } catch (err) {
                 console.error(err);
-                showToast(err.message === "Failed to fetch" ? "Network error. Make sure 'Who has access' is set to 'Anyone'." : "Connection error.", "error");
+                showToast("Network error. Check connection and URL.", "error");
             } finally {
-                // Restore button state
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
@@ -357,14 +387,12 @@
             el('passwordInput').value = '';
         });
 
-        // Check if already logged in on load
         window.addEventListener('DOMContentLoaded', () => {
             const savedUser = sessionStorage.getItem('docuscan_user');
             if (savedUser) {
                 currentUser = savedUser;
                 el('displayUsername').innerText = currentUser;
                 el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
-                
                 loginScreen.classList.add('hidden');
                 mainApp.classList.remove('hidden');
                 mainApp.classList.add('flex');
@@ -373,71 +401,117 @@
         });
 
         // ==========================================
-        // CAMERA LOGIC
+        // CAMERA & FLASH LOGIC
         // ==========================================
         async function startCamera() {
             try {
-                const constraints = {
-                    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
-                };
+                const constraints = { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } };
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 cameraFeed.srcObject = stream;
+                
+                videoTrack = stream.getVideoTracks()[0];
+                const capabilities = videoTrack.getCapabilities();
+                
+                // Show Flash button if device supports torch
+                if (capabilities.torch) {
+                    flashBtn.classList.remove('hidden');
+                    updateFlashIcon();
+                }
             } catch (err) {
-                console.error("Camera access denied:", err);
+                console.error("Camera error:", err);
                 showToast("Camera access denied.", "error");
             }
         }
 
         function stopCamera() {
             if (stream) {
+                if (videoTrack && flashMode === 'on') setTorch(false);
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
+                videoTrack = null;
             }
         }
 
+        async function setTorch(isOn) {
+            if (!videoTrack) return;
+            try { await videoTrack.applyConstraints({ advanced: [{ torch: isOn }] }); } 
+            catch (e) { console.error("Torch error", e); }
+        }
+
+        flashBtn.addEventListener('click', () => {
+            if (flashMode === 'off') { flashMode = 'on'; setTorch(true); }
+            else if (flashMode === 'on') { flashMode = 'auto'; setTorch(false); }
+            else { flashMode = 'off'; setTorch(false); }
+            updateFlashIcon();
+        });
+
+        function updateFlashIcon() {
+            if (flashMode === 'off') { flashIcon.className = 'ph ph-lightning-slash text-xl text-gray-400'; }
+            else if (flashMode === 'on') { flashIcon.className = 'ph ph-lightning text-xl text-yellow-400'; }
+            else if (flashMode === 'auto') { flashIcon.className = 'ph ph-lightning text-xl text-white'; flashIcon.innerHTML = '<span class="absolute text-[8px] font-bold bottom-0 right-0">A</span>'; }
+        }
+
         // ==========================================
-        // SCANNING / CAPTURING
+        // SCAN CAPTURING
         // ==========================================
-        captureBtn.addEventListener('click', () => {
+        captureBtn.addEventListener('click', async () => {
             if (!stream) return;
             
             captureBtn.classList.add('scale-90', 'opacity-80');
             setTimeout(() => captureBtn.classList.remove('scale-90', 'opacity-80'), 150);
 
+            // Handle AUTO flash
+            if (flashMode === 'auto' && videoTrack) {
+                await setTorch(true);
+                await new Promise(r => setTimeout(r, 400)); // Wait for camera to adjust exposure
+            }
+
+            // Visual Flash Effect
+            const flashOverlay = el('flashOverlay');
+            flashOverlay.style.opacity = '1';
+
+            // Capture Frame
             const ctx = captureCanvas.getContext('2d');
             captureCanvas.width = cameraFeed.videoWidth;
             captureCanvas.height = cameraFeed.videoHeight;
             ctx.drawImage(cameraFeed, 0, 0, captureCanvas.width, captureCanvas.height);
             
-            const base64Img = captureCanvas.toDataURL('image/jpeg', 0.85);
+            setTimeout(() => { flashOverlay.style.opacity = '0'; }, 100);
+
+            // Turn off auto flash
+            if (flashMode === 'auto') setTorch(false);
+
+            const base64Img = captureCanvas.toDataURL('image/jpeg', 0.9);
             scannedPages.push(base64Img);
             
             showToast(`Page ${scannedPages.length} captured!`);
             updateGalleryUI();
         });
 
+        // ==========================================
+        // GALLERY & THUMBNAILS
+        // ==========================================
         function updateGalleryUI() {
             if (scannedPages.length === 0) {
                 emptyThumbMsg.classList.remove('hidden');
                 thumbnailContainer.innerHTML = '';
                 thumbnailContainer.appendChild(emptyThumbMsg);
-                exportPdfBtn.disabled = true;
-                uploadDriveBtn.disabled = true;
+                exportPdfBtn.disabled = true; uploadDriveBtn.disabled = true;
                 exportPdfBtn.classList.replace('text-white', 'text-gray-400');
                 uploadDriveBtn.classList.replace('text-blue-400', 'text-gray-400');
                 return;
             }
 
             emptyThumbMsg.classList.add('hidden');
-            exportPdfBtn.disabled = false;
-            uploadDriveBtn.disabled = false;
+            exportPdfBtn.disabled = false; uploadDriveBtn.disabled = false;
             exportPdfBtn.classList.replace('text-gray-400', 'text-white');
             uploadDriveBtn.classList.replace('text-gray-400', 'text-blue-400');
 
             thumbnailContainer.innerHTML = '';
             scannedPages.forEach((pageData, index) => {
                 const thumbDiv = document.createElement('div');
-                thumbDiv.className = "relative flex-shrink-0 w-16 h-20 rounded-md overflow-hidden border-2 border-gray-700 bg-gray-800 shadow-sm";
+                thumbDiv.className = "relative flex-shrink-0 w-16 h-20 rounded-md overflow-hidden border-2 border-gray-700 bg-gray-800 shadow-sm cursor-pointer hover:border-blue-500 transition-colors";
+                thumbDiv.onclick = () => openEditScreen(index);
                 
                 const img = document.createElement('img');
                 img.src = pageData;
@@ -448,7 +522,7 @@
                 badge.innerText = index + 1;
 
                 const delBtn = document.createElement('button');
-                delBtn.className = "absolute top-0 right-0 bg-red-500/80 text-white w-5 h-5 flex items-center justify-center rounded-bl-md backdrop-blur-sm";
+                delBtn.className = "absolute top-0 right-0 bg-red-500/90 text-white w-5 h-5 flex items-center justify-center rounded-bl-md backdrop-blur-sm";
                 delBtn.innerHTML = '<i class="ph ph-x text-xs"></i>';
                 delBtn.onclick = (e) => {
                     e.stopPropagation();
@@ -461,17 +535,116 @@
                 thumbDiv.appendChild(delBtn);
                 thumbnailContainer.appendChild(thumbDiv);
             });
-            
             thumbnailContainer.scrollLeft = thumbnailContainer.scrollWidth;
         }
 
         // ==========================================
-        // EXPORT TO PDF (Local)
+        // EDIT / CROP / FILTER SCREEN
+        // ==========================================
+        let cropper = null;
+        let currentEditIndex = -1;
+        let currentFilter = 'original';
+        const editScreen = el('editScreen');
+        const editImage = el('editImage');
+
+        function openEditScreen(index) {
+            currentEditIndex = index;
+            currentFilter = 'original';
+            editImage.src = scannedPages[index];
+            editImage.className = ""; // Reset filters
+            updateFilterButtons();
+
+            editScreen.classList.remove('hidden');
+            
+            // Initialize Cropper JS
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(editImage, {
+                viewMode: 1,
+                autoCropArea: 0.95,
+                background: false,
+                modal: true,
+                guides: true,
+                highlight: true,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+            });
+        }
+
+        el('cancelEditBtn').addEventListener('click', () => {
+            editScreen.classList.add('hidden');
+            if (cropper) cropper.destroy();
+        });
+
+        // Filter Selection
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const filterType = e.currentTarget.getAttribute('data-filter');
+                currentFilter = filterType;
+                
+                // Apply CSS filter to the cropper preview for live visual feedback
+                const cropperImg = document.querySelector('.cropper-view-box img');
+                if(cropperImg) {
+                    cropperImg.className = filterType === 'grayscale' ? 'filter-grayscale' : 
+                                           filterType === 'bw' ? 'filter-bw' : '';
+                }
+                updateFilterButtons();
+            });
+        });
+
+        function updateFilterButtons() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                const borderDiv = btn.querySelector('div');
+                if (btn.getAttribute('data-filter') === currentFilter) {
+                    btn.classList.add('text-blue-400'); btn.classList.remove('text-gray-400');
+                    borderDiv.classList.add('border-current'); borderDiv.classList.remove('border-transparent');
+                } else {
+                    btn.classList.remove('text-blue-400'); btn.classList.add('text-gray-400');
+                    borderDiv.classList.remove('border-current'); borderDiv.classList.add('border-transparent');
+                }
+            });
+        }
+
+        // Save Edit (Apply crop and pixel filter permanently)
+        el('saveEditBtn').addEventListener('click', () => {
+            showToast("Processing image...");
+            const canvas = cropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
+            
+            if (currentFilter !== 'original') {
+                const ctx = canvas.getContext('2d');
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    let r = data[i], g = data[i+1], b = data[i+2];
+                    // Standard Grayscale formula
+                    let gray = 0.299 * r + 0.587 * g + 0.114 * b; 
+                    
+                    if (currentFilter === 'grayscale') {
+                        data[i] = data[i+1] = data[i+2] = gray;
+                    } else if (currentFilter === 'bw') {
+                        // High Contrast Threshold for Black & White Doc
+                        let val = gray > 110 ? 255 : 0; 
+                        data[i] = data[i+1] = data[i+2] = val;
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+            }
+
+            // Save back to array
+            scannedPages[currentEditIndex] = canvas.toDataURL('image/jpeg', 0.85);
+            
+            editScreen.classList.add('hidden');
+            if (cropper) cropper.destroy();
+            updateGalleryUI();
+        });
+
+
+        // ==========================================
+        // EXPORT TO PDF & DRIVE
         // ==========================================
         exportPdfBtn.addEventListener('click', async () => {
             if (scannedPages.length === 0) return;
             showToast("Generating PDF...");
-            
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
@@ -487,72 +660,44 @@
                 doc.save(`DocuScan_${currentUser}_${new Date().getTime()}.pdf`);
                 showToast("PDF Downloaded successfully!", "success");
             } catch (err) {
-                console.error(err);
-                showToast("Failed to generate PDF", "error");
+                console.error(err); showToast("Failed to generate PDF", "error");
             }
         });
 
-        // ==========================================
-        // GOOGLE DRIVE EXPORT (Apps Script)
-        // ==========================================
         uploadDriveBtn.addEventListener('click', () => {
             if (scannedPages.length === 0) return;
             el('docTitle').value = `Scan_${new Date().toLocaleDateString().replace(/\//g, '-')}`;
-            saveModal.classList.remove('hidden');
+            el('saveModal').classList.remove('hidden');
         });
 
-        el('cancelSaveBtn').addEventListener('click', () => {
-            saveModal.classList.add('hidden');
-        });
+        el('cancelSaveBtn').addEventListener('click', () => el('saveModal').classList.add('hidden'));
 
         el('confirmSaveBtn').addEventListener('click', async () => {
             const title = el('docTitle').value.trim() || "Untitled_Scan";
             const btn = el('confirmSaveBtn');
             const originalText = btn.innerHTML;
             
-            if (!GOOGLE_APPS_SCRIPT_URL || GOOGLE_APPS_SCRIPT_URL === "YOUR_WEB_APP_URL_HERE") {
-                showToast("Please add your Google Apps Script URL in the code first!", "error");
-                saveModal.classList.add('hidden');
-                return;
-            }
-
             btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Uploading...';
             btn.disabled = true;
 
             try {
-                const payload = {
-                    action: 'upload',
-                    title: title,
-                    username: currentUser,
-                    pages: scannedPages
-                };
-
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ action: 'upload', title: title, username: currentUser, pages: scannedPages })
                 });
 
                 const result = await response.json();
-
                 if (result.success) {
                     showToast("Saved to Google Drive!", "success");
-                    saveModal.classList.add('hidden');
-                } else {
-                    throw new Error(result.error || "Upload failed");
-                }
-
+                    el('saveModal').classList.add('hidden');
+                } else { throw new Error(result.error); }
             } catch (err) {
-                console.error(err);
-                showToast("Network error. Make sure 'Who has access' is set to 'Anyone'.", "error");
+                console.error(err); showToast("Upload failed.", "error");
             } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                btn.innerHTML = originalText; btn.disabled = false;
             }
         });
 
     </script>
 </body>
 </html>
-
-
-
