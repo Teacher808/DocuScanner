@@ -172,11 +172,11 @@
 
     <script>
         // ==========================================
-        // CONFIGURATION
+        // ⚠️ CONFIGURATION REQUIRED ⚠️
         // ==========================================
-        // Replace this URL with your actual deployed Google Apps Script Web App URL
-        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec";
-
+        // Paste your Google Apps Script Web App URL below:
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec"; 
+        
         // ==========================================
         // STATE & DOM ELEMENTS
         // ==========================================
@@ -280,15 +280,17 @@
             const btn = el('authSubmitBtn');
             const originalText = btn.innerHTML;
             
+            // Check if URL is configured
+            if (!GOOGLE_APPS_SCRIPT_URL || GOOGLE_APPS_SCRIPT_URL === "YOUR_WEB_APP_URL_HERE") {
+                showToast("Please add your Google Apps Script URL in the code first!", "error");
+                return;
+            }
+
             // Show loading state
             btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Processing...';
             btn.disabled = true;
 
             try {
-                if(GOOGLE_APPS_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec')){
-                    throw new Error("Please configure your Google Apps Script Web App URL in the code.");
-                }
-
                 // Send request to Google Apps Script
                 const payload = {
                     action: isRegisterMode ? 'register' : 'login',
@@ -332,7 +334,7 @@
                 }
             } catch (err) {
                 console.error(err);
-                showToast(err.message === "Failed to fetch" ? "Network error. Check CORS settings." : err.message, "error");
+                showToast(err.message === "Failed to fetch" ? "Network error. Make sure 'Who has access' is set to 'Anyone'." : "Connection error.", "error");
             } finally {
                 // Restore button state
                 btn.innerHTML = originalText;
@@ -355,7 +357,7 @@
             el('passwordInput').value = '';
         });
 
-        // Check if already logged in on load to skip login screen
+        // Check if already logged in on load
         window.addEventListener('DOMContentLoaded', () => {
             const savedUser = sessionStorage.getItem('docuscan_user');
             if (savedUser) {
@@ -382,7 +384,7 @@
                 cameraFeed.srcObject = stream;
             } catch (err) {
                 console.error("Camera access denied:", err);
-                showToast("Camera access denied or unavailable.", "error");
+                showToast("Camera access denied.", "error");
             }
         }
 
@@ -399,18 +401,15 @@
         captureBtn.addEventListener('click', () => {
             if (!stream) return;
             
-            // Visual feedback
             captureBtn.classList.add('scale-90', 'opacity-80');
             setTimeout(() => captureBtn.classList.remove('scale-90', 'opacity-80'), 150);
 
-            // Capture frame
             const ctx = captureCanvas.getContext('2d');
             captureCanvas.width = cameraFeed.videoWidth;
             captureCanvas.height = cameraFeed.videoHeight;
             ctx.drawImage(cameraFeed, 0, 0, captureCanvas.width, captureCanvas.height);
             
-            // Get Image Data
-            const base64Img = captureCanvas.toDataURL('image/jpeg', 0.85); // 85% quality to save space
+            const base64Img = captureCanvas.toDataURL('image/jpeg', 0.85);
             scannedPages.push(base64Img);
             
             showToast(`Page ${scannedPages.length} captured!`);
@@ -448,7 +447,6 @@
                 badge.className = "absolute bottom-0 right-0 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-tl-md";
                 badge.innerText = index + 1;
 
-                // Delete button
                 const delBtn = document.createElement('button');
                 delBtn.className = "absolute top-0 right-0 bg-red-500/80 text-white w-5 h-5 flex items-center justify-center rounded-bl-md backdrop-blur-sm";
                 delBtn.innerHTML = '<i class="ph ph-x text-xs"></i>';
@@ -464,12 +462,11 @@
                 thumbnailContainer.appendChild(thumbDiv);
             });
             
-            // Scroll to newest
             thumbnailContainer.scrollLeft = thumbnailContainer.scrollWidth;
         }
 
         // ==========================================
-        // EXPORT TO PDF
+        // EXPORT TO PDF (Local)
         // ==========================================
         exportPdfBtn.addEventListener('click', async () => {
             if (scannedPages.length === 0) return;
@@ -513,21 +510,22 @@
             const btn = el('confirmSaveBtn');
             const originalText = btn.innerHTML;
             
+            if (!GOOGLE_APPS_SCRIPT_URL || GOOGLE_APPS_SCRIPT_URL === "YOUR_WEB_APP_URL_HERE") {
+                showToast("Please add your Google Apps Script URL in the code first!", "error");
+                saveModal.classList.add('hidden');
+                return;
+            }
+
             btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Uploading...';
             btn.disabled = true;
 
             try {
                 const payload = {
-                    action: 'upload', // Added action identifier
+                    action: 'upload',
                     title: title,
-                    username: currentUser, // Used by AppScript to separate folders
+                    username: currentUser,
                     pages: scannedPages
                 };
-
-                // NOTE: If testing without a real URL, it will fail here.
-                if(GOOGLE_APPS_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec')){
-                    throw new Error("Please configure your Google Apps Script Web App URL in the code.");
-                }
 
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
@@ -539,15 +537,13 @@
                 if (result.success) {
                     showToast("Saved to Google Drive!", "success");
                     saveModal.classList.add('hidden');
-                    // Optional: clear gallery after successful upload
-                    // scannedPages = []; updateGalleryUI(); 
                 } else {
                     throw new Error(result.error || "Upload failed");
                 }
 
             } catch (err) {
                 console.error(err);
-                showToast(err.message === "Failed to fetch" ? "Network error. Check CORS settings." : err.message, "error");
+                showToast("Network error. Make sure 'Who has access' is set to 'Anyone'.", "error");
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -557,4 +553,3 @@
     </script>
 </body>
 </html>
-
