@@ -21,7 +21,7 @@
             overflow: hidden; touch-action: none;
             -webkit-tap-highlight-color: transparent; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #111827; /* Tailwind gray-900 */
+            background-color: #111827;
         }
         .hide { display: none !important; }
         .thumb-scroll::-webkit-scrollbar { width: 6px; }
@@ -50,6 +50,11 @@
                     <span id="loginBtnText">Access My Scanner</span>
                     <i id="loginSpinner" class="ph ph-spinner animate-spin text-xl hide"></i>
                 </button>
+                
+                <!-- Footnote -->
+                <div class="text-center text-xs text-gray-500 mt-6 tracking-wide font-medium">
+                    Developed by PVNJ
+                </div>
             </div>
         </div>
 
@@ -57,13 +62,16 @@
         <!-- 1. CAMERA VIEW                             -->
         <!-- ========================================== -->
         <div id="cameraView" class="absolute inset-0 z-10 flex flex-col bg-black">
-            <!-- Header (My Files Button added here) -->
+            <!-- Header -->
             <header class="absolute top-0 left-0 right-0 p-4 z-20 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-center">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">U</div>
-                    <span class="font-medium text-sm drop-shadow-md">Demo User</span>
+                    <span class="font-medium text-sm drop-shadow-md">User</span>
                 </div>
                 <div class="flex gap-2 items-center">
+                    <button id="logoutBtn" class="text-red-400 hover:text-red-300 p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow" title="Logout">
+                        <i class="ph ph-sign-out text-xl"></i>
+                    </button>
                     <button id="viewDriveBtn" class="text-blue-400 hover:text-blue-300 p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow" title="My Files">
                         <i class="ph ph-folder-open text-xl"></i>
                     </button>
@@ -103,7 +111,7 @@
         <!-- 2. VIEWER VIEW                             -->
         <!-- ========================================== -->
         <div id="viewerView" class="absolute inset-0 z-30 flex flex-col bg-gray-900 hide">
-            <!-- Header (Create New Button added here) -->
+            <!-- Header -->
             <header class="p-4 flex justify-between items-center bg-gray-800 border-b border-gray-700 shadow-sm">
                 <button id="backToCameraBtn" class="p-2 text-white hover:bg-gray-700 rounded-lg flex items-center gap-1 transition-colors">
                     <i class="ph ph-caret-left text-xl"></i> <span class="text-sm font-medium">Add More</span>
@@ -231,7 +239,7 @@
         }
 
         // ==========================================
-        // LOGIN LOGIC
+        // LOGIN & LOGOUT LOGIC
         // ==========================================
         function checkLogin() {
             if (currentUser && currentPassword) {
@@ -293,6 +301,41 @@
             }
         });
 
+        // Logout logic - clears state, drops camera, and displays login
+        el('logoutBtn').addEventListener('click', () => {
+            currentUser = "";
+            currentPassword = "";
+            localStorage.removeItem('docuscan_user');
+            localStorage.removeItem('docuscan_pass');
+            
+            // Clear inputs
+            el('usernameInput').value = '';
+            el('passwordInput').value = '';
+            
+            // Reset app state
+            scannedPages = [];
+            viewerIndex = 0;
+            updateUI();
+            el('viewerView').classList.add('hide');
+            el('cameraView').classList.remove('hide');
+            
+            // Stop the camera to save resources while logged out
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+
+            el('loginOverlay').classList.remove('hide');
+            showToast("Logged out successfully", "success");
+        });
+
+        // Initialize App & Login Check
+        if (!currentUser) {
+            el('loginOverlay').classList.remove('hide');
+        } else {
+            checkLogin();
+        }
+
         // ==========================================
         // CAMERA LOGIC
         // ==========================================
@@ -335,13 +378,6 @@
             updateUI();
         });
 
-        // Initialize App & Login Check
-        if (!currentUser) {
-            el('loginOverlay').classList.remove('hide');
-        } else {
-            checkLogin();
-        }
-
         // ==========================================
         // VIEWER LOGIC
         // ==========================================
@@ -376,22 +412,18 @@
             if (viewerIndex < scannedPages.length - 1) { viewerIndex++; updateView(); }
         });
 
-        // ==========================================
-        // NEW FEATURE: CREATE NEW / CLEAR SCAN
-        // ==========================================
         el('newScanBtn').addEventListener('click', () => {
             if(scannedPages.length > 0) {
                 if(!confirm("Are you sure you want to discard these pages and start a new scan? Unsaved changes will be lost.")) {
                     return;
                 }
             }
-            // Reset state
             scannedPages = [];
             viewerIndex = 0;
-            updateUI(); // hide viewer thumbnail from camera
+            updateUI();
             el('viewerView').classList.add('hide');
             el('cameraView').classList.remove('hide');
-            el('docTitleInput').value = ''; // Clear title input
+            el('docTitleInput').value = ''; 
             showToast("Ready for a new document", "success");
         });
 
@@ -402,7 +434,6 @@
             if (scannedPages.length === 0) throw new Error("No pages to export");
             const { jsPDF } = window.jspdf;
             
-            // Set strictly to Letter size (8.5 x 11 inches)
             const doc = new jsPDF({ unit: 'in', format: 'letter' });
             
             for (let i = 0; i < scannedPages.length; i++) {
@@ -412,7 +443,6 @@
                 const pdfWidth = doc.internal.pageSize.getWidth();   // 8.5
                 const pdfHeight = doc.internal.pageSize.getHeight(); // 11
                 
-                // Aspect Ratio Calculator: Scale image down to perfectly fit standard paper
                 let imgWidth = pdfWidth;
                 let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
                 
@@ -421,7 +451,6 @@
                     imgWidth = (imgProps.width * pdfHeight) / imgProps.height;
                 }
                 
-                // Centering math
                 const x = (pdfWidth - imgWidth) / 2;
                 const y = (pdfHeight - imgHeight) / 2;
                 
@@ -480,7 +509,6 @@
             
             try {
                 if (format === 'pdf') {
-                    // Uses our strict 8.5 x 11 formatting logic
                     const doc = await buildPDF();
                     payload.file = doc.output('datauristring');
                 } else {
