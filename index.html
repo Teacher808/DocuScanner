@@ -57,7 +57,7 @@
                     <i class="ph ph-scan text-4xl text-white"></i>
                 </div>
                 <h1 class="text-2xl font-bold tracking-tight">DocuScan Pro</h1>
-                <p class="text-gray-400 text-sm mt-1 text-center">Login to sync scans to your Drive</p>
+                <p class="text-gray-400 text-sm mt-1 text-center" id="authSubtitle">Login to sync scans to your Drive</p>
             </div>
             
             <form id="loginForm" class="flex flex-col gap-4">
@@ -76,9 +76,14 @@
                         </button>
                     </div>
                 </div>
-                <button type="submit" class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <i class="ph ph-sign-in"></i> Sign In
+                <button type="submit" id="authSubmitBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    <i class="ph ph-sign-in" id="authSubmitIcon"></i> <span id="authSubmitText">Sign In</span>
                 </button>
+
+                <div class="mt-4 text-center text-sm text-gray-400">
+                    <span id="authModeText">Don't have an account?</span>
+                    <button type="button" id="toggleAuthModeBtn" class="text-blue-400 hover:text-blue-300 font-medium ml-1">Register here</button>
+                </div>
             </form>
         </div>
     </div>
@@ -170,7 +175,7 @@
         // CONFIGURATION
         // ==========================================
         // Replace this URL with your actual deployed Google Apps Script Web App URL
-        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/execc";
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec";
 
         // ==========================================
         // STATE & DOM ELEMENTS
@@ -224,44 +229,114 @@
             toastTimeout = setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translate(-50%, -20px) scale(0.95)';
-        }, 3000);
-    }
+            }, 3000);
+        }
 
-    // ==========================================
-    // AUTHENTICATION LOGIC
-    // ==========================================
-    const togglePasswordBtn = el('togglePasswordBtn');
-    const togglePasswordIcon = el('togglePasswordIcon');
-    const passwordInput = el('passwordInput');
+        // ==========================================
+        // AUTHENTICATION LOGIC (Registration & Login)
+        // ==========================================
+        let isRegisterMode = false;
+        
+        const togglePasswordBtn = el('togglePasswordBtn');
+        const togglePasswordIcon = el('togglePasswordIcon');
+        const passwordInput = el('passwordInput');
+        
+        const toggleAuthModeBtn = el('toggleAuthModeBtn');
+        const authSubmitText = el('authSubmitText');
+        const authSubmitIcon = el('authSubmitIcon');
+        const authModeText = el('authModeText');
+        const authSubtitle = el('authSubtitle');
 
-    togglePasswordBtn.addEventListener('click', () => {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        togglePasswordIcon.className = type === 'password' ? 'ph ph-eye text-xl' : 'ph ph-eye-slash text-xl';
-    });
+        togglePasswordBtn.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            togglePasswordIcon.className = type === 'password' ? 'ph ph-eye text-xl' : 'ph ph-eye-slash text-xl';
+        });
 
-    el('loginForm').addEventListener('submit', (e) => {
-        e.preventDefault();
+        toggleAuthModeBtn.addEventListener('click', () => {
+            isRegisterMode = !isRegisterMode;
+            if (isRegisterMode) {
+                authSubtitle.innerText = 'Create a new account';
+                authSubmitText.innerText = 'Register';
+                authSubmitIcon.className = 'ph ph-user-plus';
+                authModeText.innerText = 'Already have an account?';
+                toggleAuthModeBtn.innerText = 'Login here';
+            } else {
+                authSubtitle.innerText = 'Login to sync scans to your Drive';
+                authSubmitText.innerText = 'Sign In';
+                authSubmitIcon.className = 'ph ph-sign-in';
+                authModeText.innerText = "Don't have an account?";
+                toggleAuthModeBtn.innerText = 'Register here';
+            }
+        });
+
+        el('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
             const username = el('usernameInput').value.trim();
-            const password = el('passwordInput').value.trim();
+            const password = passwordInput.value.trim();
             
-            if (username && password) {
-                // In a real app, verify credentials against a database here.
-                // For this implementation, we accept it and use the username for file separation.
-                currentUser = username;
-                sessionStorage.setItem('docuscan_user', currentUser);
-                
-                // Update UI
-                el('displayUsername').innerText = currentUser;
-                el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
-                
-                // Switch Screens
-                loginScreen.classList.add('hidden');
-                mainApp.classList.remove('hidden');
-                mainApp.classList.add('flex');
-                
-                showToast(`Welcome back, ${currentUser}!`, 'success');
-                startCamera();
+            if (!username || !password) return;
+
+            const btn = el('authSubmitBtn');
+            const originalText = btn.innerHTML;
+            
+            // Show loading state
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Processing...';
+            btn.disabled = true;
+
+            try {
+                if(GOOGLE_APPS_SCRIPT_URL.includes('REPLACE_THIS_WITH_YOUR_URL')){
+                    throw new Error("Please configure your Google Apps Script Web App URL in the code.");
+                }
+
+                // Send request to Google Apps Script
+                const payload = {
+                    action: isRegisterMode ? 'register' : 'login',
+                    username: username,
+                    password: password
+                };
+
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    showToast(result.error || "Authentication failed", "error");
+                    return;
+                }
+
+                if (isRegisterMode) {
+                    // Registration Success
+                    showToast("Registration successful! You can now log in.", "success");
+                    toggleAuthModeBtn.click();
+                    passwordInput.value = ''; // clear password for security
+                } else {
+                    // Login Success
+                    currentUser = username;
+                    sessionStorage.setItem('docuscan_user', currentUser);
+                    
+                    // Update UI
+                    el('displayUsername').innerText = currentUser;
+                    el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
+                    
+                    // Switch Screens
+                    loginScreen.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                    mainApp.classList.add('flex');
+                    
+                    showToast(`Welcome back, ${currentUser}!`, 'success');
+                    startCamera();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast(err.message === "Failed to fetch" ? "Network error. Check CORS settings." : err.message, "error");
+            } finally {
+                // Restore button state
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         });
 
@@ -280,12 +355,18 @@
             el('passwordInput').value = '';
         });
 
-        // Check if already logged in on load
+        // Check if already logged in on load to skip login screen
         window.addEventListener('DOMContentLoaded', () => {
             const savedUser = sessionStorage.getItem('docuscan_user');
             if (savedUser) {
-                el('usernameInput').value = savedUser;
-                el('passwordInput').value = '********'; // Dummy visual
+                currentUser = savedUser;
+                el('displayUsername').innerText = currentUser;
+                el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
+                
+                loginScreen.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                mainApp.classList.add('flex');
+                startCamera();
             }
         });
 
@@ -437,6 +518,7 @@
 
             try {
                 const payload = {
+                    action: 'upload', // Added action identifier
                     title: title,
                     username: currentUser, // Used by AppScript to separate folders
                     pages: scannedPages
