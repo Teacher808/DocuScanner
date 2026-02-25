@@ -16,694 +16,447 @@
 
     <style>
         html, body { 
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             width: 100%; height: 100%; margin: 0; padding: 0;
-            overflow: hidden; touch-action: none;
-            -webkit-tap-highlight-color: transparent; 
+            background-color: #111827; color: white;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden; touch-action: none;
+            -webkit-tap-highlight-color: transparent;
         }
-        .hide { display: none !important; }
+        
+        /* Custom Scrollbar for thumbnails */
+        .thumb-scroll::-webkit-scrollbar { height: 6px; }
+        .thumb-scroll::-webkit-scrollbar-track { background: transparent; }
+        .thumb-scroll::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 4px; }
+
         @keyframes slideUp {
             from { transform: translateY(100%); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-        .toast-animate { animation: slideUp 0.3s ease-out forwards; }
-        .loader {
-            border: 3px solid rgba(255,255,255,0.1); border-top-color: #3b82f6;
-            border-radius: 50%; width: 24px; height: 24px;
-            animation: spin 1s linear infinite;
+        .slide-up { animation: slideUp 0.3s ease-out forwards; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col w-full h-full">
+<body class="flex flex-col relative text-gray-100">
 
-    <!-- Loading Overlay -->
-    <div id="globalLoader" class="absolute inset-0 bg-gray-900 z-[100] flex flex-col items-center justify-center">
-        <div class="loader mb-4 w-12 h-12"></div>
-        <p class="text-gray-400 font-medium" id="loaderText">Loading...</p>
+    <!-- Toast Notification System -->
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full text-sm font-semibold shadow-lg transition-all duration-300 opacity-0 pointer-events-none flex items-center gap-2">
+        <i id="toastIcon" class="ph text-lg"></i>
+        <span id="toastMsg">Notification</span>
     </div>
 
-    <!-- ========================================== -->
-    <!-- VIEW: AUTHENTICATION (LOGIN/REGISTER)      -->
-    <!-- ========================================== -->
-    <div id="authView" class="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center p-6 z-50 hide">
-        <div class="w-full max-w-sm bg-gray-800 p-8 rounded-3xl shadow-2xl border border-gray-700">
-            <div class="flex items-center justify-center gap-2 mb-8 text-blue-400">
-                <i class="ph ph-scan text-4xl"></i>
-                <h1 class="text-2xl font-bold text-white">DocuScan<span class="text-blue-500">Pro</span></h1>
-            </div>
-
-            <form id="authForm" class="flex flex-col gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Username</label>
-                    <input type="text" id="authUsername" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition" placeholder="e.g. john_doe">
+    <!-- 1. LOGIN SCREEN -->
+    <div id="loginScreen" class="absolute inset-0 z-40 bg-gray-900 flex flex-col items-center justify-center p-6 fade-in">
+        <div class="w-full max-w-sm bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-700">
+            <div class="flex flex-col items-center mb-8">
+                <div class="bg-blue-600 p-4 rounded-full mb-4">
+                    <i class="ph ph-scan text-4xl text-white"></i>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Password</label>
-                    <input type="password" id="authPassword" required minlength="6" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition" placeholder="Min 6 characters">
-                </div>
-                
-                <div class="mt-4 flex flex-col gap-3">
-                    <button type="submit" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg">
-                        Login
-                    </button>
-                    <button type="button" id="registerBtn" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl transition">
-                        Create New Account
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- VIEW: SETUP (APPS SCRIPT URL)              -->
-    <!-- ========================================== -->
-    <div id="setupView" class="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center p-6 z-45 hide">
-        <div class="w-full max-w-sm bg-gray-800 p-8 rounded-3xl shadow-2xl border border-gray-700">
-            <div class="flex items-center justify-center gap-2 mb-6 text-emerald-400">
-                <i class="ph ph-google-drive-logo text-5xl"></i>
-            </div>
-            <h1 class="text-2xl font-bold text-white text-center mb-2">Connect Google Drive</h1>
-            <p class="text-sm text-gray-400 text-center mb-8">https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec.</p>
-
-            <form id="setupForm" class="flex flex-col gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Web App URL</label>
-                    <input type="url" id="gasUrlInput" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition" placeholder="https://script.google.com/macros/s/...">
-                </div>
-                <div class="mt-4 flex flex-col gap-3">
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg flex justify-center items-center gap-2">
-                        <i class="ph ph-link text-xl"></i> Connect Drive
-                    </button>
-                    <button type="button" id="skipDriveBtn" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl transition">
-                        Skip for Now
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- VIEW: DASHBOARD (LIST OF SCANS)            -->
-    <!-- ========================================== -->
-    <div id="dashboardView" class="absolute inset-0 flex flex-col w-full h-full bg-gray-900 z-40 hide">
-        <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center shadow-md">
-            <div class="flex items-center gap-2">
-                <i class="ph ph-files text-blue-400 text-2xl"></i>
-                <h1 class="text-xl font-bold tracking-tight">My Scans</h1>
-            </div>
-            <div class="flex items-center gap-3">
-                <div id="usernameDisplay" class="text-sm font-bold text-gray-400 bg-gray-900 px-3 py-1 rounded-full">User</div>
-                <button id="logoutBtn" class="text-gray-400 hover:text-white p-2" title="Logout">
-                    <i class="ph ph-sign-out text-xl"></i>
-                </button>
-            </div>
-        </header>
-
-        <main class="flex-1 overflow-y-auto p-4 relative">
-            <!-- Scans Grid -->
-            <div id="scansList" class="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-24">
-                <!-- Scan items injected here via JS -->
+                <h1 class="text-2xl font-bold tracking-tight">DocuScan Pro</h1>
+                <p class="text-gray-400 text-sm mt-1 text-center">Login to sync scans to your Drive</p>
             </div>
             
-            <!-- Empty State -->
-            <div id="emptyDashboardState" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center hide pointer-events-none mt-10">
-                <i class="ph ph-folder-open text-6xl text-gray-600 mb-4"></i>
-                <h2 class="text-xl font-bold text-gray-300 mb-2">No Scans Yet</h2>
-                <p class="text-gray-500">Tap the scan button below to create your first digital document.</p>
+            <form id="loginForm" class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1 ml-1">Username</label>
+                    <input type="text" id="usernameInput" required placeholder="e.g. john_doe"
+                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1 ml-1">Password</label>
+                    <input type="password" id="passwordInput" required placeholder="••••••••"
+                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                </div>
+                <button type="submit" class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    <i class="ph ph-sign-in"></i> Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. MAIN APP SCREEN -->
+    <div id="mainApp" class="hidden flex-col h-full w-full absolute inset-0 z-10 bg-black">
+        
+        <!-- Header -->
+        <header class="absolute top-0 left-0 right-0 p-4 z-20 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm" id="userInitial">U</div>
+                <span class="font-medium text-sm drop-shadow-md" id="displayUsername">User</span>
+            </div>
+            <button id="logoutBtn" class="text-gray-300 hover:text-white p-2">
+                <i class="ph ph-sign-out text-xl"></i>
+            </button>
+        </header>
+
+        <!-- Camera Viewfinder -->
+        <main class="flex-1 relative overflow-hidden flex items-center justify-center">
+            <video id="cameraFeed" autoplay playsinline class="w-full h-full object-cover"></video>
+            
+            <!-- Scanning Overlay Grid -->
+            <div class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-4">
+                <div class="flex justify-between w-full">
+                    <div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
+                    <div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
+                </div>
+                <div class="flex justify-between w-full">
+                    <div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
+                    <div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
+                </div>
             </div>
         </main>
 
-        <!-- Floating Action Button -->
-        <button id="newScanFab" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-600 hover:bg-blue-500 text-white rounded-full px-6 py-4 flex items-center gap-2 font-bold shadow-[0_10px_25px_rgba(37,99,235,0.5)] transition z-50">
-            <i class="ph ph-camera-plus text-2xl"></i>
-            <span>New Scan</span>
-        </button>
-    </div>
+        <!-- Hidden Canvas for capturing -->
+        <canvas id="captureCanvas" class="hidden"></canvas>
 
-    <!-- ========================================== -->
-    <!-- VIEW: CAMERA                               -->
-    <!-- ========================================== -->
-    <div id="cameraView" class="absolute inset-0 flex flex-col w-full h-full bg-black z-30 hide">
-        <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center z-50 relative">
-            <button id="cancelScanBtn" class="text-gray-300 hover:text-white flex items-center gap-1">
-                <i class="ph ph-x text-xl"></i> Cancel
-            </button>
-            <div class="text-sm font-bold text-gray-400">Scanner Mode</div>
-            <button id="switchCameraBtn" class="text-gray-300 hover:text-white">
-                <i class="ph ph-camera-rotate text-xl"></i>
-            </button>
-        </header>
-
-        <div class="flex-1 relative w-full h-full overflow-hidden bg-black">
-            <video id="videoElement" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
-            <div class="absolute inset-4 sm:inset-12 border-2 border-white/30 border-dashed rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
-                <div class="flex justify-between"><div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div><div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div></div>
-                <div class="flex justify-between"><div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div><div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div></div>
-            </div>
-        </div>
-
-        <div class="flex-shrink-0 h-28 sm:h-32 bg-gray-900 flex items-center justify-around px-6 z-40 border-t border-gray-800 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
-            <button id="openGalleryBtn" class="p-3 sm:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition relative">
-                <i class="ph ph-image text-2xl"></i>
-                <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
-            </button>
-            <button id="captureBtn" class="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full border-4 border-gray-400 focus:outline-none hover:bg-gray-200 transition shadow-[0_0_15px_rgba(255,255,255,0.3)] flex-shrink-0"></button>
-            <button id="reviewBtn" class="p-3 sm:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition relative flex items-center justify-center">
-                <i class="ph ph-check-circle text-2xl text-blue-400"></i>
-                <span id="pageCountBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hide shadow-md">0</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- VIEW: PREVIEW & SAVE (NEW SCAN)            -->
-    <!-- ========================================== -->
-    <div id="previewView" class="absolute inset-0 flex flex-col w-full h-full bg-gray-900 z-30 hide">
-        <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center shadow-md z-10">
-            <button id="backToCameraBtn" class="text-gray-300 hover:text-white flex items-center gap-1">
-                <i class="ph ph-caret-left text-xl"></i> Back
-            </button>
-            <h1 class="text-lg font-bold">Review Pages</h1>
-            <div class="w-16"></div>
-        </header>
-
-        <div class="flex-1 p-2 sm:p-4 flex flex-col items-center justify-center bg-gray-800 overflow-hidden relative w-full h-full">
-            <div class="flex-1 w-full flex items-center justify-center min-h-0 relative mb-4">
-                <img id="previewImage" class="max-w-full max-h-full rounded-lg shadow-xl object-contain" src="">
-                <div class="absolute top-2 right-2 flex gap-2">
-                    <button id="retakePageBtn" class="bg-blue-600/80 hover:bg-blue-600 text-white p-2 rounded-full backdrop-blur-md shadow-lg" title="Retake">
-                        <i class="ph ph-camera text-lg"></i>
-                    </button>
-                    <button id="deletePageBtn" class="bg-red-600/80 hover:bg-red-600 text-white p-2 rounded-full backdrop-blur-md shadow-lg" title="Delete">
-                        <i class="ph ph-trash text-lg"></i>
-                    </button>
+        <!-- Bottom Controls -->
+        <footer class="bg-gray-900 rounded-t-3xl p-6 pb-8 flex flex-col gap-6 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+            
+            <!-- Thumbnails Strip -->
+            <div class="h-20 w-full">
+                <div id="thumbnailContainer" class="flex gap-3 overflow-x-auto thumb-scroll h-full items-center pb-2">
+                    <p id="emptyThumbMsg" class="text-gray-500 text-sm italic w-full text-center">No pages scanned yet</p>
+                    <!-- Thumbnails go here -->
                 </div>
             </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center justify-between">
+                <button id="exportPdfBtn" class="flex flex-col items-center gap-1 text-gray-400 hover:text-white disabled:opacity-50" disabled>
+                    <div class="bg-gray-800 p-3 rounded-full"><i class="ph ph-file-pdf text-xl"></i></div>
+                    <span class="text-[10px] font-medium uppercase tracking-wider">Save PDF</span>
+                </button>
+
+                <button id="captureBtn" class="w-20 h-20 bg-white rounded-full flex items-center justify-center p-1 active:scale-95 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                    <div class="w-full h-full border-4 border-gray-900 rounded-full flex items-center justify-center bg-white hover:bg-gray-100">
+                        <i class="ph ph-camera text-3xl text-gray-900"></i>
+                    </div>
+                </button>
+
+                <button id="uploadDriveBtn" class="flex flex-col items-center gap-1 text-gray-400 hover:text-blue-400 disabled:opacity-50" disabled>
+                    <div class="bg-gray-800 p-3 rounded-full"><i class="ph ph-cloud-arrow-up text-xl"></i></div>
+                    <span class="text-[10px] font-medium uppercase tracking-wider">To Drive</span>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Save Dialog Modal -->
+    <div id="saveModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-2xl w-full max-w-sm p-6 border border-gray-700 slide-up">
+            <h2 class="text-xl font-bold mb-4">Save to Google Drive</h2>
+            <label class="block text-xs text-gray-400 mb-1">Document Title</label>
+            <input type="text" id="docTitle" placeholder="e.g. Invoice_Dec" class="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-white mb-6 focus:outline-none focus:border-blue-500">
             
-            <div id="thumbnailStrip" class="w-full h-20 flex-shrink-0 flex gap-3 overflow-x-auto pb-2 snap-x px-2"></div>
-            <canvas id="canvasElement" class="hide"></canvas>
-        </div>
-
-        <div class="flex-shrink-0 bg-gray-900 p-4 sm:p-5 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative z-20 w-full">
-            <div class="flex justify-between items-center">
-                <button id="addPageBtn" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition text-sm">
-                    <i class="ph ph-plus text-lg"></i> Add Page
-                </button>
-                <div class="text-sm text-gray-400 font-medium" id="pageCountDisplay">1 Page</div>
-            </div>
-            <hr class="border-gray-700 my-1">
-            <div class="flex flex-col gap-2">
-                <label class="text-xs text-gray-400 font-medium">Document Title</label>
-                <input type="text" id="scanTitleInput" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500" placeholder="e.g. Receipt, Invoice...">
-            </div>
-            <button id="saveToCloudBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transition">
-                <i class="ph ph-cloud-check text-xl"></i> Save & Upload
-            </button>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- VIEW: SCAN VIEWER (VIEW SAVED SCANS)       -->
-    <!-- ========================================== -->
-    <div id="viewerView" class="absolute inset-0 flex flex-col w-full h-full bg-gray-900 z-40 hide">
-        <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center shadow-md z-10">
-            <button id="closeViewerBtn" class="text-gray-300 hover:text-white p-2">
-                <i class="ph ph-x text-2xl"></i>
-            </button>
-            <h1 class="text-lg font-bold truncate px-4 flex-1 text-center" id="viewerTitle">Document Title</h1>
-            <button id="deleteScanBtn" class="text-red-400 hover:text-red-300 p-2" title="Delete Scan">
-                <i class="ph ph-trash text-xl"></i>
-            </button>
-        </header>
-
-        <div class="flex-1 p-2 sm:p-4 flex flex-col items-center justify-center bg-gray-800 overflow-hidden relative w-full h-full">
-            <div class="flex-1 w-full flex items-center justify-center min-h-0 relative mb-4">
-                <img id="viewerImage" class="max-w-full max-h-full rounded-lg shadow-xl object-contain" src="">
-            </div>
-            <div id="viewerThumbnailStrip" class="w-full h-20 flex-shrink-0 flex gap-3 overflow-x-auto pb-2 snap-x px-2"></div>
-        </div>
-
-        <div class="flex-shrink-0 bg-gray-900 p-4 sm:p-5 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.3)] flex flex-col gap-3 relative z-20 w-full">
-            <div class="text-sm font-medium text-gray-300 mb-1">Export Options</div>
-            <div class="grid grid-cols-2 gap-3">
-                <button id="exportPdfBtn" class="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/50 p-3 rounded-xl flex items-center justify-center gap-2 transition font-bold">
-                    <i class="ph ph-file-pdf text-xl"></i> PDF
-                </button>
-                <button id="exportJpgBtn" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/50 p-3 rounded-xl flex items-center justify-center gap-2 transition font-bold">
-                    <i class="ph ph-file-jpg text-xl"></i> JPEG
-                </button>
-            </div>
-            <div id="driveLinkContainer" class="mt-2 hide">
-                <button id="openDriveBtn" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/50 p-3 rounded-xl flex items-center justify-center gap-2 transition font-bold">
-                    <i class="ph ph-google-drive-logo text-xl"></i> View in Google Drive
+            <div class="flex gap-3">
+                <button id="cancelSaveBtn" class="flex-1 py-3 rounded-xl bg-gray-700 text-white font-medium hover:bg-gray-600 transition-colors">Cancel</button>
+                <button id="confirmSaveBtn" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors flex items-center justify-center gap-2">
+                    <i class="ph ph-upload-simple"></i> Upload
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Container -->
-    <div id="toastContainer" class="fixed top-6 left-0 right-0 flex flex-col items-center pointer-events-none z-[200] gap-2 px-4"></div>
+    <script>
+        // ==========================================
+        // CONFIGURATION
+        // ==========================================
+        // Replace this URL with your actual deployed Google Apps Script Web App URL
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_REPLACE_THIS_WITH_YOUR_URL/exec";
 
-    <!-- Firebase & Logic script -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, setDoc, getDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // --- Firebase Initialization ---
-        let firebaseConfig = {};
-        try { firebaseConfig = JSON.parse(__firebase_config); } catch (e) { console.error("Missing Firebase Config"); }
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        // --- App State ---
+        // ==========================================
+        // STATE & DOM ELEMENTS
+        // ==========================================
         let currentUser = null;
-        let currentUsername = "";
-        let gasUrl = localStorage.getItem('docuscan_gas_url') || "";
-        let unsubscribeScans = null;
-        let savedScans = [];
-        let currentlyViewingScan = null;
+        let stream = null;
+        let scannedPages = []; // Array of base64 images
+
+        // Elements
+        const el = (id) => document.getElementById(id);
+        const loginScreen = el('loginScreen');
+        const mainApp = el('mainApp');
+        const cameraFeed = el('cameraFeed');
+        const captureCanvas = el('captureCanvas');
+        const thumbnailContainer = el('thumbnailContainer');
+        const emptyThumbMsg = el('emptyThumbMsg');
         
-        // Camera State
-        let currentStream = null;
-        let facingMode = 'environment';
-        let pages = []; 
-        let currentPageIndex = 0;
-        let retakePageIndex = null;
+        // Buttons
+        const captureBtn = el('captureBtn');
+        const exportPdfBtn = el('exportPdfBtn');
+        const uploadDriveBtn = el('uploadDriveBtn');
+        const logoutBtn = el('logoutBtn');
+        const saveModal = el('saveModal');
 
-        // --- DOM Elements ---
-        const getEl = id => document.getElementById(id);
-        const views = {
-            auth: getEl('authView'), setup: getEl('setupView'), dashboard: getEl('dashboardView'),
-            camera: getEl('cameraView'), preview: getEl('previewView'), viewer: getEl('viewerView')
-        };
-        const canvasElement = getEl('canvasElement');
-        const videoElement = getEl('videoElement');
-
-        // --- UI Utilities ---
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            const colors = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-gray-800 border border-gray-700' };
-            toast.className = `${colors[type]} text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold toast-animate pointer-events-auto max-w-xs text-center flex items-center justify-center gap-2`;
-            toast.innerHTML = `<i class="ph ${type==='success'?'ph-check-circle':type==='error'?'ph-warning-circle':'ph-info'} text-lg"></i> ${message}`;
-            getEl('toastContainer').appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0'; toast.style.transform = 'translateY(-100%)';
-                toast.style.transition = 'all 0.3s ease-in';
-                setTimeout(() => toast.remove(), 300);
+        // ==========================================
+        // UTILS: TOAST NOTIFICATIONS
+        // ==========================================
+        let toastTimeout;
+        function showToast(msg, type = 'info') {
+            const toast = el('toast');
+            const icon = el('toastIcon');
+            el('toastMsg').innerText = msg;
+            
+            toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full text-sm font-semibold shadow-xl transition-all duration-300 flex items-center gap-2`;
+            
+            if (type === 'success') {
+                toast.classList.add('bg-green-500', 'text-white');
+                icon.className = 'ph ph-check-circle text-lg';
+            } else if (type === 'error') {
+                toast.classList.add('bg-red-500', 'text-white');
+                icon.className = 'ph ph-warning-circle text-lg';
+            } else {
+                toast.classList.add('bg-gray-800', 'text-white', 'border', 'border-gray-700');
+                icon.className = 'ph ph-info text-lg';
+            }
+            
+            toast.style.opacity = '1';
+            toast.style.transform = 'translate(-50%, 0) scale(1)';
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translate(-50%, -20px) scale(0.95)';
             }, 3000);
         }
 
-        function switchView(viewName) {
-            Object.values(views).forEach(v => v.classList.add('hide'));
-            views[viewName].classList.remove('hide');
-            if (viewName !== 'camera') stopCamera();
-            if (viewName === 'camera') startCamera();
-        }
-
-        function showLoader(show, text="Loading...") {
-            getEl('loaderText').textContent = text;
-            getEl('globalLoader').style.display = show ? 'flex' : 'none';
-        }
-
-        async function compressImage(dataUrl, quality = 0.6, maxDim = 1200) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    let w = img.width, h = img.height;
-                    if (w > maxDim || h > maxDim) {
-                        if (w > h) { h = Math.floor(h * (maxDim / w)); w = maxDim; }
-                        else { w = Math.floor(w * (maxDim / h)); h = maxDim; }
-                    }
-                    const cvs = document.createElement('canvas');
-                    cvs.width = w; cvs.height = h;
-                    cvs.getContext('2d').drawImage(img, 0, 0, w, h);
-                    resolve(cvs.toDataURL('image/jpeg', quality));
-                };
-                img.src = dataUrl;
-            });
-        }
-
-        // --- Authentication Engine ---
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch(e) { showLoader(false); }
-        };
-
-        const getEmail = (username) => `${username.trim().toLowerCase()}@docuscan.local`;
-
-        onAuthStateChanged(auth, async (user) => {
-            currentUser = user;
-            showLoader(false);
-            if (user && !user.isAnonymous) {
-                // Fetch user profile to get actual username
-                try {
-                    const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-                    const profileSnap = await getDoc(profileRef);
-                    if (profileSnap.exists()) currentUsername = profileSnap.data().username || "User";
-                    else currentUsername = "User";
-                    getEl('usernameDisplay').textContent = currentUsername;
-                } catch(e) { console.error(e); }
-
-                // Check Drive Setup
-                if (!gasUrl) { switchView('setup'); } 
-                else { switchView('dashboard'); listenToScans(); }
-            } else {
-                switchView('auth');
-                if (unsubscribeScans) unsubscribeScans();
-            }
-        });
-
-        getEl('authForm').addEventListener('submit', async (e) => {
+        // ==========================================
+        // AUTHENTICATION LOGIC
+        // ==========================================
+        el('loginForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            const u = getEl('authUsername').value;
-            const p = getEl('authPassword').value;
-            if(!u || !p) return;
+            const username = el('usernameInput').value.trim();
+            const password = el('passwordInput').value.trim();
             
-            showLoader(true, "Logging in...");
-            try {
-                if(auth.currentUser?.isAnonymous) await signOut(auth);
-                await signInWithEmailAndPassword(auth, getEmail(u), p);
-                getEl('authForm').reset();
-            } catch (err) {
-                showLoader(false);
-                showToast("Login failed. Check credentials.", "error");
-            }
-        });
-
-        getEl('registerBtn').addEventListener('click', async () => {
-            const u = getEl('authUsername').value;
-            const p = getEl('authPassword').value;
-            if(!u || p.length < 6) return showToast("Enter username & 6+ char password", "error");
-            
-            showLoader(true, "Creating account...");
-            try {
-                if(auth.currentUser?.isAnonymous) await signOut(auth);
-                const userCredential = await createUserWithEmailAndPassword(auth, getEmail(u), p);
+            if (username && password) {
+                // In a real app, verify credentials against a database here.
+                // For this implementation, we accept it and use the username for file separation.
+                currentUser = username;
+                sessionStorage.setItem('docuscan_user', currentUser);
                 
-                // Save username to profile
-                const profileRef = doc(db, 'artifacts', appId, 'users', userCredential.user.uid, 'profile', 'data');
-                await setDoc(profileRef, { username: u });
+                // Update UI
+                el('displayUsername').innerText = currentUser;
+                el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
                 
-                showToast("Account created successfully!", "success");
-                getEl('authForm').reset();
-            } catch (err) {
-                showLoader(false);
-                if(err.code === 'auth/email-already-in-use') showToast("Username already exists.", "error");
-                else showToast("Registration failed.", "error");
+                // Switch Screens
+                loginScreen.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                mainApp.classList.add('flex');
+                
+                showToast(`Welcome back, ${currentUser}!`, 'success');
+                startCamera();
             }
         });
 
-        getEl('logoutBtn').addEventListener('click', async () => {
-            await signOut(auth);
-            initAuth(); 
+        logoutBtn.addEventListener('click', () => {
+            stopCamera();
+            currentUser = null;
+            sessionStorage.removeItem('docuscan_user');
+            scannedPages = [];
+            updateGalleryUI();
+            
+            loginScreen.classList.remove('hidden');
+            mainApp.classList.add('hidden');
+            mainApp.classList.remove('flex');
+            
+            el('usernameInput').value = '';
+            el('passwordInput').value = '';
         });
 
-        // --- Drive Setup Engine ---
-        getEl('setupForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const url = getEl('gasUrlInput').value.trim();
-            if (!url.startsWith('https://script.google.com/')) return showToast("Invalid Apps Script URL", "error");
-            gasUrl = url;
-            localStorage.setItem('docuscan_gas_url', gasUrl);
-            showToast("Connected to Drive!", "success");
-            switchView('dashboard');
-            listenToScans();
-        });
-
-        getEl('skipDriveBtn').addEventListener('click', () => {
-            switchView('dashboard');
-            listenToScans();
-        });
-
-        // --- Dashboard & Firestore History Engine ---
-        function listenToScans() {
-            if (!currentUser || currentUser.isAnonymous) return;
-            showLoader(true, "Loading Scans...");
-            
-            const scansRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'scans');
-            
-            unsubscribeScans = onSnapshot(scansRef, (snapshot) => {
-                savedScans = [];
-                snapshot.forEach(doc => savedScans.push({ id: doc.id, ...doc.data() }));
-                savedScans.sort((a, b) => b.timestamp - a.timestamp);
-                renderDashboard();
-                showLoader(false);
-            }, (error) => {
-                showToast("Failed to load scans", "error");
-                showLoader(false);
-            });
-        }
-
-        function renderDashboard() {
-            const list = getEl('scansList');
-            const emptyState = getEl('emptyDashboardState');
-            list.innerHTML = '';
-            
-            if (savedScans.length === 0) {
-                emptyState.classList.remove('hide');
-            } else {
-                emptyState.classList.add('hide');
-                savedScans.forEach(scan => {
-                    const dateStr = new Date(scan.timestamp).toLocaleDateString();
-                    const card = document.createElement('div');
-                    card.className = "bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700 cursor-pointer hover:border-blue-500 transition active:scale-95 flex flex-col";
-                    card.innerHTML = `
-                        <div class="h-32 w-full bg-gray-900 overflow-hidden relative">
-                            <img src="${scan.pages[0]}" class="w-full h-full object-cover opacity-80">
-                            ${scan.driveUrl ? `<div class="absolute top-2 right-2 bg-emerald-600 text-white p-1 rounded-full shadow"><i class="ph ph-google-drive-logo text-xs"></i></div>` : ''}
-                            <div class="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md">
-                                ${scan.pages.length} Page${scan.pages.length > 1 ? 's' : ''}
-                            </div>
-                        </div>
-                        <div class="p-3">
-                            <div class="font-bold text-sm truncate">${scan.title || 'Untitled'}</div>
-                            <div class="text-xs text-gray-400 mt-1">${dateStr}</div>
-                        </div>
-                    `;
-                    card.onclick = () => openScanViewer(scan);
-                    list.appendChild(card);
-                });
+        // Check if already logged in on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUser = sessionStorage.getItem('docuscan_user');
+            if (savedUser) {
+                el('usernameInput').value = savedUser;
+                el('passwordInput').value = '********'; // Dummy visual
             }
-        }
+        });
 
-        // --- Camera Engine ---
+        // ==========================================
+        // CAMERA LOGIC
+        // ==========================================
         async function startCamera() {
             try {
-                currentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
-                videoElement.srcObject = currentStream;
-            } catch (err) { showToast("Camera unavailable.", "error"); }
+                const constraints = {
+                    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+                };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                cameraFeed.srcObject = stream;
+            } catch (err) {
+                console.error("Camera access denied:", err);
+                showToast("Camera access denied or unavailable.", "error");
+            }
         }
 
         function stopCamera() {
-            if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
         }
 
-        getEl('newScanFab').addEventListener('click', () => {
-            pages = []; currentPageIndex = 0; retakePageIndex = null;
-            getEl('pageCountBadge').classList.add('hide');
-            switchView('camera');
-        });
-
-        getEl('cancelScanBtn').addEventListener('click', () => switchView('dashboard'));
-        getEl('switchCameraBtn').addEventListener('click', () => {
-            facingMode = facingMode === 'environment' ? 'user' : 'environment';
-            startCamera();
-        });
-
-        function handleCapture(imageSource, width, height) {
-            canvasElement.width = width; canvasElement.height = height;
-            const ctx = canvasElement.getContext('2d');
-            ctx.drawImage(imageSource, 0, 0, width, height);
-            const dataUrl = canvasElement.toDataURL('image/jpeg', 0.9);
+        // ==========================================
+        // SCANNING / CAPTURING
+        // ==========================================
+        captureBtn.addEventListener('click', () => {
+            if (!stream) return;
             
-            if (retakePageIndex !== null) {
-                pages[retakePageIndex] = { dataUrl, width, height };
-                showToast(`Page ${retakePageIndex + 1} retaken!`);
-                currentPageIndex = retakePageIndex; retakePageIndex = null;
-                switchView('preview'); renderPreviewThumbnails();
-            } else {
-                pages.push({ dataUrl, width, height });
-                getEl('pageCountBadge').textContent = pages.length;
-                getEl('pageCountBadge').classList.remove('hide');
-                showToast(`Page ${pages.length} captured`);
+            // Visual feedback
+            captureBtn.classList.add('scale-90', 'opacity-80');
+            setTimeout(() => captureBtn.classList.remove('scale-90', 'opacity-80'), 150);
+
+            // Capture frame
+            const ctx = captureCanvas.getContext('2d');
+            captureCanvas.width = cameraFeed.videoWidth;
+            captureCanvas.height = cameraFeed.videoHeight;
+            ctx.drawImage(cameraFeed, 0, 0, captureCanvas.width, captureCanvas.height);
+            
+            // Get Image Data
+            const base64Img = captureCanvas.toDataURL('image/jpeg', 0.85); // 85% quality to save space
+            scannedPages.push(base64Img);
+            
+            showToast(`Page ${scannedPages.length} captured!`);
+            updateGalleryUI();
+        });
+
+        function updateGalleryUI() {
+            if (scannedPages.length === 0) {
+                emptyThumbMsg.classList.remove('hidden');
+                thumbnailContainer.innerHTML = '';
+                thumbnailContainer.appendChild(emptyThumbMsg);
+                exportPdfBtn.disabled = true;
+                uploadDriveBtn.disabled = true;
+                exportPdfBtn.classList.replace('text-white', 'text-gray-400');
+                uploadDriveBtn.classList.replace('text-blue-400', 'text-gray-400');
+                return;
             }
-        }
 
-        getEl('captureBtn').addEventListener('click', () => {
-            if (!videoElement.videoWidth) return;
-            const flash = document.createElement('div');
-            flash.className = 'absolute inset-0 bg-white opacity-75 z-50 transition-opacity duration-300';
-            videoElement.parentElement.appendChild(flash);
-            setTimeout(() => flash.remove(), 200);
-            handleCapture(videoElement, videoElement.videoWidth, videoElement.videoHeight);
-        });
+            emptyThumbMsg.classList.add('hidden');
+            exportPdfBtn.disabled = false;
+            uploadDriveBtn.disabled = false;
+            exportPdfBtn.classList.replace('text-gray-400', 'text-white');
+            uploadDriveBtn.classList.replace('text-gray-400', 'text-blue-400');
 
-        getEl('fileInput').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const img = new Image();
-                img.onload = () => handleCapture(img, img.width, img.height);
-                img.src = URL.createObjectURL(file);
-            }
-        });
+            thumbnailContainer.innerHTML = '';
+            scannedPages.forEach((pageData, index) => {
+                const thumbDiv = document.createElement('div');
+                thumbDiv.className = "relative flex-shrink-0 w-16 h-20 rounded-md overflow-hidden border-2 border-gray-700 bg-gray-800 shadow-sm";
+                
+                const img = document.createElement('img');
+                img.src = pageData;
+                img.className = "w-full h-full object-cover";
+                
+                const badge = document.createElement('div');
+                badge.className = "absolute bottom-0 right-0 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-tl-md";
+                badge.innerText = index + 1;
 
-        // --- Preview Engine ---
-        getEl('reviewBtn').addEventListener('click', () => {
-            if (pages.length === 0) return showToast("Capture a page first", "error");
-            retakePageIndex = null;
-            const d = new Date();
-            getEl('scanTitleInput').value = `Scan ${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-            switchView('preview'); renderPreviewThumbnails();
-        });
+                // Delete button
+                const delBtn = document.createElement('button');
+                delBtn.className = "absolute top-0 right-0 bg-red-500/80 text-white w-5 h-5 flex items-center justify-center rounded-bl-md backdrop-blur-sm";
+                delBtn.innerHTML = '<i class="ph ph-x text-xs"></i>';
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    scannedPages.splice(index, 1);
+                    updateGalleryUI();
+                };
 
-        getEl('backToCameraBtn').addEventListener('click', () => switchView('camera'));
-        getEl('addPageBtn').addEventListener('click', () => switchView('camera'));
-        
-        getEl('retakePageBtn').addEventListener('click', () => { retakePageIndex = currentPageIndex; switchView('camera'); });
-        getEl('deletePageBtn').addEventListener('click', () => {
-            pages.splice(currentPageIndex, 1);
-            if (pages.length === 0) { getEl('pageCountBadge').classList.add('hide'); switchView('camera'); } 
-            else { currentPageIndex = Math.max(0, currentPageIndex - 1); getEl('pageCountBadge').textContent = pages.length; renderPreviewThumbnails(); }
-        });
-
-        function renderPreviewThumbnails() {
-            const strip = getEl('thumbnailStrip'); strip.innerHTML = '';
-            getEl('pageCountDisplay').textContent = `${pages.length} Page${pages.length>1?'s':''}`;
-            pages.forEach((p, idx) => {
-                const img = document.createElement('img'); img.src = p.dataUrl;
-                img.className = `h-full w-auto object-cover rounded-md cursor-pointer border-2 transition-all ${idx === currentPageIndex ? 'border-blue-500 scale-105' : 'border-transparent opacity-50'}`;
-                img.onclick = () => { currentPageIndex = idx; getEl('previewImage').src = pages[idx].dataUrl; renderPreviewThumbnails(); };
-                strip.appendChild(img);
+                thumbDiv.appendChild(img);
+                thumbDiv.appendChild(badge);
+                thumbDiv.appendChild(delBtn);
+                thumbnailContainer.appendChild(thumbDiv);
             });
-            getEl('previewImage').src = pages[currentPageIndex].dataUrl;
+            
+            // Scroll to newest
+            thumbnailContainer.scrollLeft = thumbnailContainer.scrollWidth;
         }
 
-        // --- Dual Save Engine (Firestore + Drive) ---
-        getEl('saveToCloudBtn').addEventListener('click', async () => {
-            if (!currentUser) return showToast("Not logged in!", "error");
-            if (pages.length === 0) return;
-
-            showLoader(true, "Saving securely...");
-            const title = getEl('scanTitleInput').value || 'Untitled Scan';
+        // ==========================================
+        // EXPORT TO PDF
+        // ==========================================
+        exportPdfBtn.addEventListener('click', async () => {
+            if (scannedPages.length === 0) return;
+            showToast("Generating PDF...");
             
             try {
-                // Compress for storage limits
-                const compressedPages = [];
-                for (let p of pages) compressedPages.push(await compressImage(p.dataUrl, 0.6, 1200));
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                for (let i = 0; i < scannedPages.length; i++) {
+                    if (i > 0) doc.addPage();
+                    const imgProps = doc.getImageProperties(scannedPages[i]);
+                    const pdfWidth = doc.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    doc.addImage(scannedPages[i], 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                }
+                
+                doc.save(`DocuScan_${currentUser}_${new Date().getTime()}.pdf`);
+                showToast("PDF Downloaded successfully!", "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Failed to generate PDF", "error");
+            }
+        });
 
-                let driveUrl = null;
+        // ==========================================
+        // GOOGLE DRIVE EXPORT (Apps Script)
+        // ==========================================
+        uploadDriveBtn.addEventListener('click', () => {
+            if (scannedPages.length === 0) return;
+            el('docTitle').value = `Scan_${new Date().toLocaleDateString().replace(/\//g, '-')}`;
+            saveModal.classList.remove('hidden');
+        });
 
-                // 1. Upload to Google Drive (if configured)
-                if (gasUrl) {
-                    try {
-                        const response = await fetch(gasUrl, {
-                            method: 'POST', headers: { 'Content-Type': 'text/plain' },
-                            body: JSON.stringify({ title: title, username: currentUsername, pages: compressedPages })
-                        });
-                        const result = await response.json();
-                        if (result.success) driveUrl = result.folderUrl;
-                    } catch (driveErr) { console.error("Drive upload failed", driveErr); showToast("Drive backup failed, but saving locally.", "error"); }
+        el('cancelSaveBtn').addEventListener('click', () => {
+            saveModal.classList.add('hidden');
+        });
+
+        el('confirmSaveBtn').addEventListener('click', async () => {
+            const title = el('docTitle').value.trim() || "Untitled_Scan";
+            const btn = el('confirmSaveBtn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Uploading...';
+            btn.disabled = true;
+
+            try {
+                const payload = {
+                    title: title,
+                    username: currentUser, // Used by AppScript to separate folders
+                    pages: scannedPages
+                };
+
+                // NOTE: If testing without a real URL, it will fail here.
+                if(GOOGLE_APPS_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec')){
+                    throw new Error("Please configure your Google Apps Script Web App URL in the code.");
                 }
 
-                // 2. Save to Firestore for History
-                const docData = { title: title, timestamp: Date.now(), pages: compressedPages, driveUrl: driveUrl };
-                const scansRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'scans');
-                await addDoc(scansRef, docData);
-                
-                showToast("Saved Successfully!", "success");
-                pages = []; switchView('dashboard');
-            } catch (e) {
-                console.error("Save error", e); showToast("Failed to save scan.", "error");
-            } finally { showLoader(false); }
-        });
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
 
-        // --- Viewer Engine ---
-        let viewerPageIndex = 0;
+                const result = await response.json();
 
-        function openScanViewer(scan) {
-            currentlyViewingScan = scan; viewerPageIndex = 0;
-            getEl('viewerTitle').textContent = scan.title;
-            
-            if(scan.driveUrl) {
-                getEl('driveLinkContainer').classList.remove('hide');
-                getEl('openDriveBtn').onclick = () => window.open(scan.driveUrl, '_blank');
-            } else { getEl('driveLinkContainer').classList.add('hide'); }
+                if (result.success) {
+                    showToast("Saved to Google Drive!", "success");
+                    saveModal.classList.add('hidden');
+                    // Optional: clear gallery after successful upload
+                    // scannedPages = []; updateGalleryUI(); 
+                } else {
+                    throw new Error(result.error || "Upload failed");
+                }
 
-            switchView('viewer'); renderViewerThumbnails();
-        }
-
-        getEl('closeViewerBtn').addEventListener('click', () => switchView('dashboard'));
-
-        function renderViewerThumbnails() {
-            if(!currentlyViewingScan) return;
-            const strip = getEl('viewerThumbnailStrip'); strip.innerHTML = '';
-            currentlyViewingScan.pages.forEach((pStr, idx) => {
-                const img = document.createElement('img'); img.src = pStr;
-                img.className = `h-full w-auto object-cover rounded-md cursor-pointer border-2 transition-all ${idx === viewerPageIndex ? 'border-blue-500 scale-105' : 'border-transparent opacity-50'}`;
-                img.onclick = () => { viewerPageIndex = idx; getEl('viewerImage').src = currentlyViewingScan.pages[idx]; renderViewerThumbnails(); };
-                strip.appendChild(img);
-            });
-            getEl('viewerImage').src = currentlyViewingScan.pages[viewerPageIndex];
-        }
-
-        getEl('deleteScanBtn').addEventListener('click', async () => {
-            if(!confirm("Delete this scan from your app history? (It will not delete from Google Drive)")) return;
-            showLoader(true, "Deleting...");
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'scans', currentlyViewingScan.id);
-                await deleteDoc(docRef); showToast("Scan deleted", "success"); switchView('dashboard');
-            } catch (e) { showToast("Failed to delete", "error"); } finally { showLoader(false); }
-        });
-
-        // --- Export Engine ---
-        async function buildPDF(base64Array) {
-            const { jsPDF } = window.jspdf; let doc = new jsPDF({ format: 'a4' });
-            for (let i = 0; i < base64Array.length; i++) {
-                if (i > 0) doc.addPage();
-                const imgProps = doc.getImageProperties(base64Array[i]);
-                const pdfWidth = doc.internal.pageSize.getWidth();
-                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                doc.addImage(base64Array[i], 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            } catch (err) {
+                console.error(err);
+                showToast(err.message === "Failed to fetch" ? "Network error. Check CORS settings." : err.message, "error");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-            return doc;
-        }
-
-        getEl('exportPdfBtn').addEventListener('click', async () => {
-            if(!currentlyViewingScan) return;
-            showToast("Generating PDF...", "info");
-            try {
-                const doc = await buildPDF(currentlyViewingScan.pages);
-                doc.save(`${currentlyViewingScan.title.replace(/ /g, '_')}.pdf`);
-                showToast("PDF Downloaded!", "success");
-            } catch (e) { showToast("PDF Generation Failed", "error"); }
         });
-
-        getEl('exportJpgBtn').addEventListener('click', () => {
-            if(!currentlyViewingScan) return;
-            const link = document.createElement('a');
-            link.download = `${currentlyViewingScan.title}_page${viewerPageIndex + 1}.jpg`;
-            link.href = currentlyViewingScan.pages[viewerPageIndex];
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-            showToast("Image Downloaded!", "success");
-        });
-
-        // --- Boot ---
-        initAuth();
 
     </script>
-
-    <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }</script>
 </body>
 </html>
-
-
