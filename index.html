@@ -51,35 +51,38 @@
     <main class="flex-1 relative flex flex-col min-h-0 w-full">
         
         <!-- View 1: Camera View -->
-        <div id="cameraView" class="flex-1 relative w-full h-full bg-black overflow-hidden">
+        <div id="cameraView" class="flex-1 flex flex-col w-full bg-black overflow-hidden">
             
-            <!-- Start Camera Overlay (Top Layer) -->
-            <div id="startCameraOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-50">
-                <i class="ph ph-scan text-6xl text-gray-500 mb-4"></i>
-                <p class="text-gray-400 mb-6 text-center px-6">Ready to scan your documents?</p>
-                <button id="startCameraOverlayBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 shadow-lg transition">
-                    <i class="ph ph-camera text-2xl"></i> Open Camera
-                </button>
+            <!-- Camera Scanning Area -->
+            <div class="flex-1 relative w-full overflow-hidden">
+                <!-- Start Camera Overlay (Top Layer) -->
+                <div id="startCameraOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-50">
+                    <i class="ph ph-scan text-6xl text-gray-500 mb-4"></i>
+                    <p class="text-gray-400 mb-6 text-center px-6">Ready to scan your documents?</p>
+                    <button id="startCameraOverlayBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 shadow-lg transition">
+                        <i class="ph ph-camera text-2xl"></i> Open Camera
+                    </button>
+                </div>
+
+                <!-- Camera Video Feed -->
+                <video id="videoElement" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
+                
+                <!-- Top Right Camera Controls -->
+                <div class="absolute top-4 right-4 z-30">
+                    <button id="switchCameraBtn" class="p-3 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 transition">
+                        <i class="ph ph-camera-rotate text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Target Reticle -->
+                <div class="absolute inset-8 border-2 border-white/30 border-dashed rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
+                    <div class="flex justify-between"><div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div><div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div></div>
+                    <div class="flex justify-between"><div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div><div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div></div>
+                </div>
             </div>
 
-            <!-- Camera Video Feed -->
-            <video id="videoElement" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
-            
-            <!-- Top Right Camera Controls -->
-            <div class="absolute top-4 right-4 z-30">
-                <button id="switchCameraBtn" class="p-3 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 transition">
-                    <i class="ph ph-camera-rotate text-xl"></i>
-                </button>
-            </div>
-
-            <!-- Target Reticle -->
-            <div class="absolute inset-6 bottom-36 border-2 border-white/30 border-dashed rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
-                <div class="flex justify-between"><div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div><div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div></div>
-                <div class="flex justify-between"><div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div><div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div></div>
-            </div>
-
-            <!-- Camera Controls (Absolute Bottom Overlay) -->
-            <div class="absolute bottom-0 left-0 right-0 h-32 bg-gray-900/80 backdrop-blur-md flex items-center justify-around px-6 pb-6 pt-2 z-40 border-t border-white/10">
+            <!-- Camera Controls (Dedicated Bottom Bar) -->
+            <div class="h-32 flex-shrink-0 bg-gray-900 flex items-center justify-around px-6 pb-6 pt-2 border-t border-gray-800 z-40">
                 <button id="openGalleryBtn" class="p-3 bg-gray-800 rounded-full hover:bg-gray-700 transition relative">
                     <i class="ph ph-image text-2xl"></i>
                     <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
@@ -317,7 +320,7 @@
             // Add a quick flash effect
             const flash = document.createElement('div');
             flash.className = 'absolute inset-0 bg-white opacity-50 z-50 transition-opacity duration-300';
-            cameraView.appendChild(flash);
+            document.querySelector('.relative.w-full.overflow-hidden').appendChild(flash);
             setTimeout(() => flash.remove(), 300);
 
             captureImage(videoElement, videoElement.videoWidth, videoElement.videoHeight);
