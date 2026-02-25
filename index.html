@@ -33,6 +33,27 @@
     <div id="app" class="relative w-full h-full">
         
         <!-- ========================================== -->
+        <!-- 0. LOGIN OVERLAY                           -->
+        <!-- ========================================== -->
+        <div id="loginOverlay" class="absolute inset-0 z-[100] bg-gray-900 flex flex-col items-center justify-center p-6 hide">
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="ph ph-lock-key text-3xl text-white"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-white">Secure Login</h1>
+                    <p class="text-sm text-gray-400 mt-2">Enter a username and password to access your secure Drive folder.</p>
+                </div>
+                <input type="text" id="usernameInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 focus:outline-none mb-3 text-center" placeholder="Username">
+                <input type="password" id="passwordInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 focus:outline-none mb-4 text-center" placeholder="Password">
+                <button id="loginBtn" class="w-full py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors flex justify-center items-center gap-2">
+                    <span id="loginBtnText">Access My Scanner</span>
+                    <i id="loginSpinner" class="ph ph-spinner animate-spin text-xl hide"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
         <!-- 1. CAMERA VIEW                             -->
         <!-- ========================================== -->
         <div id="cameraView" class="absolute inset-0 z-10 flex flex-col bg-black">
@@ -174,7 +195,8 @@
         // ⚠️ IMPORTANT: REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT DEPLOYMENT URL
         const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySF1GPjOnzpKZNLy0bu0pxE5Xl9wOyxInSdBXbzW-d2CS67fDeOfw8wSxciq4uJni7Zg/exec"; 
         
-        const currentUser = "DemoUser"; // Using a placeholder user ID for demonstration
+        let currentUser = localStorage.getItem('docuscan_user') || ""; 
+        let currentPassword = localStorage.getItem('docuscan_pass') || "";
         
         let scannedPages = [];
         let viewerIndex = 0;
@@ -209,9 +231,73 @@
         }
 
         // ==========================================
+        // LOGIN LOGIC
+        // ==========================================
+        function checkLogin() {
+            if (currentUser && currentPassword) {
+                el('loginOverlay').classList.add('hide');
+                const userInitial = currentUser.charAt(0).toUpperCase();
+                
+                // Update header UI with user details
+                const headerInitialEl = document.querySelector('#cameraView header .w-8');
+                const headerNameEl = document.querySelector('#cameraView header span');
+                if (headerInitialEl) headerInitialEl.textContent = userInitial;
+                if (headerNameEl) headerNameEl.textContent = currentUser;
+                
+                initCamera();
+            }
+        }
+
+        el('loginBtn').addEventListener('click', async () => {
+            const userVal = el('usernameInput').value.trim();
+            const passVal = el('passwordInput').value.trim();
+            
+            if (userVal.length < 3 || passVal.length < 4) {
+                showToast("Username min 3 chars, Password min 4 chars", "error");
+                return;
+            }
+
+            if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) {
+                alert("Please add your Apps Script URL to the code before logging in.");
+                return;
+            }
+
+            el('loginBtnText').textContent = "Authenticating...";
+            el('loginSpinner').classList.remove('hide');
+            el('loginBtn').disabled = true;
+
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'auth', username: userVal, password: passVal })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    currentUser = userVal;
+                    currentPassword = passVal;
+                    localStorage.setItem('docuscan_user', currentUser);
+                    localStorage.setItem('docuscan_pass', currentPassword);
+                    showToast(result.message, "success");
+                    checkLogin();
+                } else {
+                    showToast(result.error || "Authentication failed", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Network error. Try again.", "error");
+            } finally {
+                el('loginBtnText').textContent = "Access My Scanner";
+                el('loginSpinner').classList.add('hide');
+                el('loginBtn').disabled = false;
+            }
+        });
+
+        // ==========================================
         // CAMERA LOGIC
         // ==========================================
         async function initCamera() {
+            if (!currentUser) return; // Prevent camera init if not logged in
             if (stream) stream.getTracks().forEach(track => track.stop());
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ 
@@ -249,8 +335,12 @@
             updateUI();
         });
 
-        // Initialize Camera on load
-        initCamera();
+        // Initialize App & Login Check
+        if (!currentUser) {
+            el('loginOverlay').classList.remove('hide');
+        } else {
+            checkLogin();
+        }
 
         // ==========================================
         // VIEWER LOGIC
@@ -386,7 +476,7 @@
             el('saveModal').classList.add('hide');
             showToast("Preparing file...", "info");
             
-            let payload = { action: 'save', username: currentUser, title: title, format: format };
+            let payload = { action: 'save', username: currentUser, password: currentPassword, title: title, format: format };
             
             try {
                 if (format === 'pdf') {
@@ -433,7 +523,7 @@
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'list_files', username: currentUser })
+                    body: JSON.stringify({ action: 'list_files', username: currentUser, password: currentPassword })
                 });
                 const result = await response.json();
                 
@@ -448,7 +538,7 @@
                                 </div>
                                 <div class="flex-1 overflow-hidden">
                                     <div class="text-sm font-semibold truncate">${f.name}</div>
-                                    <div class="text-xs text-gray-400 mt-1">${new Date(f.date).toLocaleDateString()}</div>
+                                    <div class="text-xs text-gray-400 mt-1">${new Date(f.date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                                 </div>
                                 <i class="ph ph-arrow-square-out text-gray-400 text-lg"></i>
                             </a>
