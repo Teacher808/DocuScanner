@@ -238,7 +238,7 @@
         // ==========================================
         // CONFIGURATION & STATE
         // ==========================================
-        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLw0K9-xxxx_YOUR_SCRIPT_URL_HERE/exec"; 
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySF1GPjOnzpKZNLy0bu0pxE5Xl9wOyxInSdBXbzW-d2CS67fDeOfw8wSxciq4uJni7Zg/exec"; 
         
         let currentUser = localStorage.getItem('docuscan_user') || ""; 
         let currentPassword = localStorage.getItem('docuscan_pass') || "";
@@ -697,3 +697,4 @@
     </script>
 </body>
 </html>
+
