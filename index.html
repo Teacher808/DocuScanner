@@ -110,12 +110,20 @@
                 <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm" id="userInitial">U</div>
                 <span class="font-medium text-sm drop-shadow-md" id="displayUsername">User</span>
             </div>
-            <div class="flex gap-4">
+            <div class="flex gap-2 sm:gap-4 items-center">
+                <!-- View Drive Files Button -->
+                <button id="viewDriveBtn" class="text-blue-400 hover:text-blue-300 p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors" title="My Files">
+                    <i class="ph ph-folder-open text-xl"></i>
+                </button>
+                <!-- Camera Toggle Button -->
+                <button id="toggleCameraBtn" class="text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors">
+                    <i class="ph ph-video-camera text-xl" id="cameraStateIcon"></i>
+                </button>
                 <!-- Flash Toggle Button -->
                 <button id="flashBtn" class="hidden text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md">
                     <i class="ph ph-lightning-slash text-xl" id="flashIcon"></i>
                 </button>
-                <button id="logoutBtn" class="text-gray-300 hover:text-white p-2">
+                <button id="logoutBtn" class="text-gray-300 hover:text-white p-2 ml-2">
                     <i class="ph ph-sign-out text-xl"></i>
                 </button>
             </div>
@@ -123,11 +131,19 @@
 
         <!-- Camera Viewfinder -->
         <main class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
-            <video id="cameraFeed" autoplay playsinline class="w-full h-full object-cover"></video>
+            <video id="cameraFeed" autoplay playsinline class="w-full h-full object-cover transition-opacity duration-300"></video>
+            
+            <!-- Camera Off Placeholder -->
+            <div id="cameraOffScreen" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10">
+                <i class="ph ph-video-camera-slash text-6xl text-gray-600 mb-4"></i>
+                <p class="text-gray-400 font-medium">Camera is turned off</p>
+                <button id="turnOnCameraOverlayBtn" class="mt-6 bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-full text-sm font-medium transition-colors">Turn On Camera</button>
+            </div>
+
             <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 z-30"></div>
             
             <!-- Scanning Overlay Grid -->
-            <div class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
+            <div id="scanOverlay" class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
                 <div class="flex justify-between w-full">
                     <div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
                     <div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
@@ -157,7 +173,7 @@
                 </button>
 
                 <button id="captureBtn" class="w-20 h-20 bg-white rounded-full flex items-center justify-center p-1 active:scale-95 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                    <div class="w-full h-full border-4 border-gray-900 rounded-full flex items-center justify-center bg-white hover:bg-gray-100">
+                    <div class="w-full h-full border-4 border-gray-900 rounded-full flex items-center justify-center bg-white hover:bg-gray-100 disabled:opacity-50" id="innerCaptureBtn">
                         <i class="ph ph-camera text-3xl text-gray-900"></i>
                     </div>
                 </button>
@@ -214,18 +230,55 @@
         </footer>
     </div>
 
-    <!-- 4. SAVE MODAL -->
+    <!-- 4. SAVE TO DRIVE MODAL -->
     <div id="saveModal" class="hidden fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
         <div class="bg-gray-800 rounded-2xl w-full max-w-sm p-6 border border-gray-700 slide-up">
             <h2 class="text-xl font-bold mb-4">Save to Google Drive</h2>
+            
             <label class="block text-xs text-gray-400 mb-1">Document Title</label>
             <input type="text" id="docTitle" placeholder="e.g. Invoice_Dec" class="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-white mb-6 focus:outline-none focus:border-blue-500">
+            
+            <!-- Format Selector -->
+            <label class="block text-xs text-gray-400 mb-2">Upload Format</label>
+            <div class="grid grid-cols-3 gap-2 mb-6">
+                <label class="cursor-pointer">
+                    <input type="radio" name="exportFormat" value="pdf" class="peer sr-only" checked>
+                    <div class="rounded-xl border border-gray-600 px-2 py-3 text-center text-[10px] sm:text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-600/20 peer-checked:text-blue-400 flex flex-col items-center gap-1">
+                        <i class="ph ph-file-pdf text-xl sm:text-2xl"></i> <span>PDF<br>(Combined)</span>
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="exportFormat" value="jpeg" class="peer sr-only">
+                    <div class="rounded-xl border border-gray-600 px-2 py-3 text-center text-[10px] sm:text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-600/20 peer-checked:text-blue-400 flex flex-col items-center gap-1">
+                        <i class="ph ph-image text-xl sm:text-2xl"></i> <span>JPEG<br>(Individual)</span>
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="exportFormat" value="png" class="peer sr-only">
+                    <div class="rounded-xl border border-gray-600 px-2 py-3 text-center text-[10px] sm:text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-600/20 peer-checked:text-blue-400 flex flex-col items-center gap-1">
+                        <i class="ph ph-image-square text-xl sm:text-2xl"></i> <span>PNG<br>(Individual)</span>
+                    </div>
+                </label>
+            </div>
             
             <div class="flex gap-3">
                 <button id="cancelSaveBtn" class="flex-1 py-3 rounded-xl bg-gray-700 text-white font-medium hover:bg-gray-600 transition-colors">Cancel</button>
                 <button id="confirmSaveBtn" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors flex items-center justify-center gap-2">
                     <i class="ph ph-upload-simple"></i> Upload
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. VIEW DRIVE FILES MODAL -->
+    <div id="filesModal" class="hidden fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-2xl w-full max-w-sm p-6 border border-gray-700 slide-up max-h-[80vh] flex flex-col">
+            <h2 class="text-xl font-bold mb-4 text-white flex justify-between items-center">
+                My Drive Files
+                <button id="closeFilesBtn" class="text-gray-400 hover:text-white transition-colors"><i class="ph ph-x text-xl"></i></button>
+            </h2>
+            <div id="filesListContainer" class="flex-1 overflow-y-auto thumb-scroll flex flex-col gap-3 pr-1">
+                <div class="text-center text-gray-500 text-sm py-4">Loading files...</div>
             </div>
         </div>
     </div>
@@ -244,6 +297,7 @@
         let videoTrack = null;
         let scannedPages = []; // Array of base64 images
         let flashMode = 'off'; // 'off', 'on', 'auto'
+        let isCameraOn = true; 
 
         // Elements
         const el = (id) => document.getElementById(id);
@@ -254,11 +308,19 @@
         const thumbnailContainer = el('thumbnailContainer');
         const emptyThumbMsg = el('emptyThumbMsg');
         
-        // Buttons
+        // Camera & Buttons
         const captureBtn = el('captureBtn');
+        const innerCaptureBtn = el('innerCaptureBtn');
         const exportPdfBtn = el('exportPdfBtn');
         const uploadDriveBtn = el('uploadDriveBtn');
         const logoutBtn = el('logoutBtn');
+        
+        const toggleCameraBtn = el('toggleCameraBtn');
+        const cameraStateIcon = el('cameraStateIcon');
+        const cameraOffScreen = el('cameraOffScreen');
+        const turnOnCameraOverlayBtn = el('turnOnCameraOverlayBtn');
+        const scanOverlay = el('scanOverlay');
+
         const flashBtn = el('flashBtn');
         const flashIcon = el('flashIcon');
 
@@ -295,7 +357,7 @@
         }
 
         // ==========================================
-        // AUTHENTICATION LOGIC (Registration & Login)
+        // AUTHENTICATION LOGIC
         // ==========================================
         let isRegisterMode = false;
         const togglePasswordBtn = el('togglePasswordBtn');
@@ -348,19 +410,11 @@
                 });
                 const result = await response.json();
 
-                if (!result.success) {
-                    showToast(result.error || "Authentication failed", "error");
-                    return;
-                }
+                if (!result.success) { showToast(result.error || "Authentication failed", "error"); return; }
 
-                // If Registration is successful, automatically log them in
-                if (isRegisterMode) {
-                    showToast("Registration successful! Logging you in...", "success");
-                } else {
-                    showToast(`Welcome back, ${username}!`, 'success');
-                }
+                if (isRegisterMode) showToast("Registration successful! Logging you in...", "success");
+                else showToast(`Welcome back, ${username}!`, 'success');
 
-                // Apply Login Data & Switch Screens
                 currentUser = username;
                 sessionStorage.setItem('docuscan_user', currentUser);
                 el('displayUsername').innerText = currentUser;
@@ -370,15 +424,14 @@
                 mainApp.classList.remove('hidden');
                 mainApp.classList.add('flex');
                 
-                passwordInput.value = ''; // clear for security
+                passwordInput.value = '';
+                isCameraOn = true;
                 startCamera();
 
             } catch (err) {
-                console.error(err);
-                showToast("Network error. Check connection and URL.", "error");
+                console.error(err); showToast("Network error. Check connection and URL.", "error");
             } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                btn.innerHTML = originalText; btn.disabled = false;
             }
         });
 
@@ -393,8 +446,7 @@
             mainApp.classList.add('hidden');
             mainApp.classList.remove('flex');
             
-            el('usernameInput').value = '';
-            el('passwordInput').value = '';
+            el('usernameInput').value = ''; el('passwordInput').value = '';
         });
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -406,12 +458,13 @@
                 loginScreen.classList.add('hidden');
                 mainApp.classList.remove('hidden');
                 mainApp.classList.add('flex');
+                isCameraOn = true;
                 startCamera();
             }
         });
 
         // ==========================================
-        // CAMERA & FLASH LOGIC
+        // CAMERA, TOGGLE, & FLASH LOGIC
         // ==========================================
         async function startCamera() {
             try {
@@ -420,16 +473,24 @@
                 cameraFeed.srcObject = stream;
                 
                 videoTrack = stream.getVideoTracks()[0];
-                const capabilities = videoTrack.getCapabilities();
+                const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
                 
                 // Show Flash button if device supports torch
-                if (capabilities.torch) {
-                    flashBtn.classList.remove('hidden');
-                    updateFlashIcon();
-                }
+                if (capabilities.torch) { flashBtn.classList.remove('hidden'); updateFlashIcon(); }
+                else { flashBtn.classList.add('hidden'); }
+
+                // Update UI state
+                cameraFeed.classList.remove('opacity-0');
+                cameraOffScreen.classList.add('hidden');
+                scanOverlay.classList.remove('hidden');
+                cameraStateIcon.className = 'ph ph-video-camera text-xl text-white';
+                innerCaptureBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+                innerCaptureBtn.classList.add('bg-white', 'hover:bg-gray-100');
+                
             } catch (err) {
                 console.error("Camera error:", err);
-                showToast("Camera access denied.", "error");
+                showToast("Camera access denied or unavailable.", "error");
+                toggleCameraOff(); // Force off UI
             }
         }
 
@@ -442,10 +503,38 @@
             }
         }
 
+        function toggleCameraOff() {
+            stopCamera();
+            isCameraOn = false;
+            cameraFeed.classList.add('opacity-0');
+            cameraOffScreen.classList.remove('hidden');
+            scanOverlay.classList.add('hidden');
+            cameraStateIcon.className = 'ph ph-video-camera-slash text-xl text-red-400';
+            flashBtn.classList.add('hidden'); // Hide flash when cam is off
+            
+            // Disable capture button visually
+            innerCaptureBtn.classList.add('bg-gray-300', 'cursor-not-allowed');
+            innerCaptureBtn.classList.remove('bg-white', 'hover:bg-gray-100');
+        }
+
+        toggleCameraBtn.addEventListener('click', () => {
+            if (isCameraOn) { toggleCameraOff(); } 
+            else { isCameraOn = true; startCamera(); }
+        });
+
+        turnOnCameraOverlayBtn.addEventListener('click', () => {
+            isCameraOn = true; startCamera();
+        });
+
         async function setTorch(isOn) {
             if (!videoTrack) return;
-            try { await videoTrack.applyConstraints({ advanced: [{ torch: isOn }] }); } 
-            catch (e) { console.error("Torch error", e); }
+            try { 
+                await videoTrack.applyConstraints({ advanced: [{ torch: isOn }] }); 
+            } catch (e) { 
+                // Fallback for some android devices
+                try { await videoTrack.applyConstraints({ torch: isOn }); } 
+                catch(err) { console.error("Torch error fallback failed", err); }
+            }
         }
 
         flashBtn.addEventListener('click', () => {
@@ -465,22 +554,21 @@
         // SCAN CAPTURING
         // ==========================================
         captureBtn.addEventListener('click', async () => {
-            if (!stream) return;
+            if (!isCameraOn || !stream) {
+                showToast("Please turn on the camera first", "error"); return;
+            }
             
             captureBtn.classList.add('scale-90', 'opacity-80');
             setTimeout(() => captureBtn.classList.remove('scale-90', 'opacity-80'), 150);
 
-            // Handle AUTO flash
             if (flashMode === 'auto' && videoTrack) {
                 await setTorch(true);
-                await new Promise(r => setTimeout(r, 400)); // Wait for camera to adjust exposure
+                await new Promise(r => setTimeout(r, 400));
             }
 
-            // Visual Flash Effect
             const flashOverlay = el('flashOverlay');
             flashOverlay.style.opacity = '1';
 
-            // Capture Frame
             const ctx = captureCanvas.getContext('2d');
             captureCanvas.width = cameraFeed.videoWidth;
             captureCanvas.height = cameraFeed.videoHeight;
@@ -488,7 +576,6 @@
             
             setTimeout(() => { flashOverlay.style.opacity = '0'; }, 100);
 
-            // Turn off auto flash
             if (flashMode === 'auto') setTorch(false);
 
             const base64Img = captureCanvas.toDataURL('image/jpeg', 0.9);
@@ -561,22 +648,15 @@
             currentEditIndex = index;
             currentFilter = 'original';
             editImage.src = scannedPages[index];
-            editImage.className = ""; // Reset filters
+            editImage.className = ""; 
             updateFilterButtons();
 
             editScreen.classList.remove('hidden');
             
-            // Initialize Cropper JS
             if (cropper) cropper.destroy();
             cropper = new Cropper(editImage, {
-                viewMode: 1,
-                autoCropArea: 0.95,
-                background: false,
-                modal: true,
-                guides: true,
-                highlight: true,
-                cropBoxMovable: true,
-                cropBoxResizable: true,
+                viewMode: 1, autoCropArea: 0.95, background: false, modal: true,
+                guides: true, highlight: true, cropBoxMovable: true, cropBoxResizable: true,
             });
         }
 
@@ -585,13 +665,11 @@
             if (cropper) cropper.destroy();
         });
 
-        // Filter Selection
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const filterType = e.currentTarget.getAttribute('data-filter');
                 currentFilter = filterType;
                 
-                // Apply CSS filter to the cropper preview for live visual feedback
                 const cropperImg = document.querySelector('.cropper-view-box img');
                 if(cropperImg) {
                     cropperImg.className = filterType === 'grayscale' ? 'filter-grayscale' : 
@@ -614,7 +692,6 @@
             });
         }
 
-        // Save Edit (Apply crop and pixel filter permanently)
         el('saveEditBtn').addEventListener('click', () => {
             showToast("Processing image...");
             const canvas = cropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
@@ -626,13 +703,10 @@
                 
                 for (let i = 0; i < data.length; i += 4) {
                     let r = data[i], g = data[i+1], b = data[i+2];
-                    // Standard Grayscale formula
                     let gray = 0.299 * r + 0.587 * g + 0.114 * b; 
-                    
                     if (currentFilter === 'grayscale') {
                         data[i] = data[i+1] = data[i+2] = gray;
                     } else if (currentFilter === 'bw') {
-                        // High Contrast Threshold for Black & White Doc
                         let val = gray > 110 ? 255 : 0; 
                         data[i] = data[i+1] = data[i+2] = val;
                     }
@@ -640,17 +714,14 @@
                 ctx.putImageData(imgData, 0, 0);
             }
 
-            // Save back to array
             scannedPages[currentEditIndex] = canvas.toDataURL('image/jpeg', 0.85);
-            
             editScreen.classList.add('hidden');
             if (cropper) cropper.destroy();
             updateGalleryUI();
         });
 
-
         // ==========================================
-        // EXPORT TO PDF & DRIVE
+        // EXPORT TO PDF (LOCAL) & GOOGLE DRIVE API
         // ==========================================
         exportPdfBtn.addEventListener('click', async () => {
             if (scannedPages.length === 0) return;
@@ -669,9 +740,7 @@
                 
                 doc.save(`DocuScan_${currentUser}_${new Date().getTime()}.pdf`);
                 showToast("PDF Downloaded successfully!", "success");
-            } catch (err) {
-                console.error(err); showToast("Failed to generate PDF", "error");
-            }
+            } catch (err) { console.error(err); showToast("Failed to generate PDF", "error"); }
         });
 
         uploadDriveBtn.addEventListener('click', () => {
@@ -682,18 +751,103 @@
 
         el('cancelSaveBtn').addEventListener('click', () => el('saveModal').classList.add('hidden'));
 
+        // ==========================================
+        // VIEW DRIVE FILES LOGIC
+        // ==========================================
+        el('viewDriveBtn').addEventListener('click', async () => {
+            const modal = el('filesModal');
+            const container = el('filesListContainer');
+            modal.classList.remove('hidden');
+            container.innerHTML = '<div class="text-center text-gray-500 text-sm py-8"><i class="ph ph-spinner animate-spin text-2xl mb-2"></i><br>Fetching files from Drive...</div>';
+
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'list_files', username: currentUser })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (result.files.length === 0) {
+                        container.innerHTML = '<div class="text-center text-gray-500 text-sm py-8">No files found in your Drive yet.</div>';
+                    } else {
+                        container.innerHTML = result.files.map(f => `
+                            <a href="${f.url}" target="_blank" class="flex items-center gap-3 p-3 bg-gray-900 rounded-xl hover:bg-gray-700 transition-colors border border-gray-700">
+                                <div class="${f.type === 'folder' ? 'text-yellow-400' : 'text-red-400'} text-2xl">
+                                    <i class="ph ${f.type === 'folder' ? 'ph-folder' : 'ph-file-pdf'}"></i>
+                                </div>
+                                <div class="flex-1 overflow-hidden">
+                                    <div class="text-sm text-gray-200 font-medium truncate">${f.name}</div>
+                                    <div class="text-[10px] text-gray-500">${new Date(f.date).toLocaleDateString()}</div>
+                                </div>
+                                <i class="ph ph-arrow-square-out text-gray-500"></i>
+                            </a>
+                        `).join('');
+                    }
+                } else { throw new Error(result.error); }
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<div class="text-center text-red-400 text-sm py-8">Failed to load files. Check your connection.</div>';
+            }
+        });
+
+        el('closeFilesBtn').addEventListener('click', () => el('filesModal').classList.add('hidden'));
+
+        // ==========================================
+        // DRIVE UPLOAD FORMAT LOGIC
+        // ==========================================
         el('confirmSaveBtn').addEventListener('click', async () => {
             const title = el('docTitle').value.trim() || "Untitled_Scan";
+            const format = document.querySelector('input[name="exportFormat"]:checked').value;
             const btn = el('confirmSaveBtn');
             const originalText = btn.innerHTML;
             
             btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Uploading...';
             btn.disabled = true;
 
+            let payload = {
+                action: 'upload',
+                title: title,
+                username: currentUser,
+                format: format
+            };
+
             try {
+                if (format === 'pdf') {
+                    // Generate PDF directly as Base64 string to send to Drive
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    for (let i = 0; i < scannedPages.length; i++) {
+                        if (i > 0) doc.addPage();
+                        const imgProps = doc.getImageProperties(scannedPages[i]);
+                        const pdfWidth = doc.internal.pageSize.getWidth();
+                        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                        doc.addImage(scannedPages[i], 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    }
+                    payload.file = doc.output('datauristring'); // Attach the combined PDF base64
+                } else if (format === 'png') {
+                    // Convert JPEGs to PNG before sending
+                    payload.pages = await Promise.all(scannedPages.map(src => {
+                        return new Promise(resolve => {
+                            const img = new Image();
+                            img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width; canvas.height = img.height;
+                                canvas.getContext('2d').drawImage(img, 0, 0);
+                                resolve(canvas.toDataURL('image/png'));
+                            };
+                            img.src = src;
+                        });
+                    }));
+                } else {
+                    // Send default JPEGs
+                    payload.pages = scannedPages;
+                }
+
+                // Send to backend App Script
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'upload', title: title, username: currentUser, pages: scannedPages })
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
