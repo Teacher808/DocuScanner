@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DocuScan Pro</title>
-    
-    <!-- Web App Manifest for PWA -->
-    <link rel="manifest" href="./manifest.json">
+    <title>DocuScan Cloud</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -21,17 +18,13 @@
         /* Force exact viewport fit and prevent all native browser scrolling/zooming */
         html, body { 
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
+            margin: 0; padding: 0;
             overflow: hidden;
             touch-action: none;
             -webkit-tap-highlight-color: transparent; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         
         .hide { display: none !important; }
@@ -42,581 +35,702 @@
             to { transform: translateY(0); opacity: 1; }
         }
         .toast-animate { animation: slideUp 0.3s ease-out forwards; }
+
+        /* Loader */
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col font-sans w-full h-full">
+<body class="bg-gray-900 text-white flex flex-col w-full h-full">
 
-    <!-- Header (Fixed size, won't shrink) -->
-    <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center shadow-md z-10 relative">
-        <div class="flex items-center gap-2">
-            <i class="ph ph-scan text-blue-400 text-2xl"></i>
-            <h1 class="text-xl font-bold tracking-tight">DocuScan</h1>
+    <!-- Loading Overlay -->
+    <div id="globalLoader" class="absolute inset-0 bg-gray-900 z-[100] flex flex-col items-center justify-center">
+        <div class="loader mb-4 w-12 h-12"></div>
+        <p class="text-gray-400 font-medium">Connecting to Secure Cloud...</p>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW: AUTHENTICATION (LOGIN/REGISTER)      -->
+    <!-- ========================================== -->
+    <div id="authView" class="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center p-6 z-50 hide">
+        <div class="w-full max-w-sm bg-gray-800 p-8 rounded-3xl shadow-2xl border border-gray-700">
+            <div class="flex items-center justify-center gap-2 mb-8 text-blue-400">
+                <i class="ph ph-scan text-4xl"></i>
+                <h1 class="text-2xl font-bold text-white">DocuScan<span class="text-blue-500">Cloud</span></h1>
+            </div>
+
+            <form id="authForm" class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Username</label>
+                    <input type="text" id="authUsername" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition" placeholder="e.g. john_doe">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Password</label>
+                    <input type="password" id="authPassword" required minlength="6" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition" placeholder="Min 6 characters">
+                </div>
+                
+                <div class="mt-4 flex flex-col gap-3">
+                    <button type="submit" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg">
+                        Login
+                    </button>
+                    <button type="button" id="registerBtn" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl transition">
+                        Create New Account
+                    </button>
+                </div>
+            </form>
         </div>
-    </header>
+    </div>
 
-    <!-- Main Content Area (Takes remaining exact space) -->
-    <main class="flex-1 relative overflow-hidden w-full h-full">
-        
-        <!-- View 1: Camera View -->
-        <div id="cameraView" class="absolute inset-0 flex flex-col w-full h-full bg-black">
+    <!-- ========================================== -->
+    <!-- VIEW: DASHBOARD (LIST OF SCANS)            -->
+    <!-- ========================================== -->
+    <div id="dashboardView" class="absolute inset-0 flex flex-col w-full h-full bg-gray-900 z-40 hide">
+        <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center shadow-md">
+            <div class="flex items-center gap-2">
+                <i class="ph ph-files text-blue-400 text-2xl"></i>
+                <h1 class="text-xl font-bold tracking-tight">My Scans</h1>
+            </div>
+            <button id="logoutBtn" class="text-gray-400 hover:text-white p-2" title="Logout">
+                <i class="ph ph-sign-out text-xl"></i>
+            </button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 relative">
+            <!-- Scans Grid -->
+            <div id="scansList" class="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-24">
+                <!-- Scan items injected here via JS -->
+            </div>
             
-            <!-- Camera Scanning Area (Takes flexible space) -->
-            <div class="flex-1 relative w-full h-full overflow-hidden bg-black">
-                <!-- Start Camera Overlay (Top Layer) -->
-                <div id="startCameraOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-50">
-                    <i class="ph ph-scan text-6xl text-gray-500 mb-4"></i>
-                    <p class="text-gray-400 mb-6 text-center px-6">Ready to scan your documents?</p>
-                    <button id="startCameraOverlayBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 shadow-lg transition">
-                        <i class="ph ph-camera text-2xl"></i> Open Camera
-                    </button>
-                </div>
-
-                <!-- Camera Video Feed -->
-                <video id="videoElement" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
-                
-                <!-- Top Right Camera Controls -->
-                <div class="absolute top-4 right-4 z-30">
-                    <button id="switchCameraBtn" class="p-3 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 transition">
-                        <i class="ph ph-camera-rotate text-xl"></i>
-                    </button>
-                </div>
-
-                <!-- Target Reticle -->
-                <div class="absolute inset-4 sm:inset-12 border-2 border-white/30 border-dashed rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
-                    <div class="flex justify-between"><div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div><div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div></div>
-                    <div class="flex justify-between"><div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div><div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div></div>
-                </div>
+            <!-- Empty State -->
+            <div id="emptyDashboardState" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center hide pointer-events-none">
+                <i class="ph ph-folder-open text-6xl text-gray-600 mb-4"></i>
+                <h2 class="text-xl font-bold text-gray-300 mb-2">No Scans Yet</h2>
+                <p class="text-gray-500">Tap the scan button below to create your first digital document.</p>
             </div>
+        </main>
 
-            <!-- Camera Controls (Dedicated Bottom Bar - Fixed Height) -->
-            <div class="flex-shrink-0 h-28 sm:h-32 bg-gray-900 flex items-center justify-around px-6 z-40 border-t border-gray-800 relative shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
-                <button id="openGalleryBtn" class="p-3 sm:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition relative">
-                    <i class="ph ph-image text-2xl"></i>
-                    <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
-                </button>
-                
-                <button id="captureBtn" class="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full border-4 border-gray-400 focus:outline-none hover:bg-gray-200 transition shadow-[0_0_15px_rgba(255,255,255,0.3)] flex-shrink-0"></button>
-                
-                <button id="reviewBtn" class="p-3 sm:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition relative flex items-center justify-center">
-                    <i class="ph ph-check-circle text-2xl text-blue-400"></i>
-                    <span id="pageCountBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hide shadow-md">0</span>
-                </button>
+        <!-- Floating Action Button -->
+        <button id="newScanFab" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-600 hover:bg-blue-500 text-white rounded-full px-6 py-4 flex items-center gap-2 font-bold shadow-[0_10px_25px_rgba(37,99,235,0.5)] transition z-50">
+            <i class="ph ph-camera-plus text-2xl"></i>
+            <span>New Scan</span>
+        </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW: CAMERA                               -->
+    <!-- ========================================== -->
+    <div id="cameraView" class="absolute inset-0 flex flex-col w-full h-full bg-black z-30 hide">
+        <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center z-50 relative">
+            <button id="cancelScanBtn" class="text-gray-300 hover:text-white flex items-center gap-1">
+                <i class="ph ph-x text-xl"></i> Cancel
+            </button>
+            <div class="text-sm font-bold text-gray-400" id="cameraModeText">Scanner Mode</div>
+            <button id="switchCameraBtn" class="text-gray-300 hover:text-white">
+                <i class="ph ph-camera-rotate text-xl"></i>
+            </button>
+        </header>
+
+        <div class="flex-1 relative w-full h-full overflow-hidden bg-black">
+            <video id="videoElement" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
+            
+            <div class="absolute inset-4 sm:inset-12 border-2 border-white/30 border-dashed rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
+                <div class="flex justify-between"><div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div><div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div></div>
+                <div class="flex justify-between"><div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div><div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div></div>
             </div>
         </div>
 
-        <!-- View 2: Preview & Export View -->
-        <div id="previewView" class="absolute inset-0 flex flex-col w-full h-full bg-gray-900 hide">
-            <!-- Preview Content (Takes flexible space) -->
-            <div class="flex-1 p-2 sm:p-4 flex flex-col items-center justify-center bg-gray-800 overflow-hidden relative w-full h-full">
-                <!-- Main Preview Image -->
-                <div class="flex-1 w-full flex items-center justify-center min-h-0 relative mb-4">
-                    <img id="previewImage" class="max-w-full max-h-full rounded-lg shadow-xl object-contain" src="" alt="Captured scan">
-                    <div class="absolute top-2 right-2 flex gap-2">
-                        <button id="retakePageBtn" class="bg-blue-600/80 hover:bg-blue-600 text-white p-2 rounded-full backdrop-blur-md transition shadow-lg" title="Retake Page">
-                            <i class="ph ph-camera text-lg"></i>
-                        </button>
-                        <button id="deletePageBtn" class="bg-red-600/80 hover:bg-red-600 text-white p-2 rounded-full backdrop-blur-md transition shadow-lg" title="Delete Page">
-                            <i class="ph ph-trash text-lg"></i>
-                        </button>
-                    </div>
+        <div class="flex-shrink-0 h-28 sm:h-32 bg-gray-900 flex items-center justify-around px-6 z-40 border-t border-gray-800 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
+            <button id="openGalleryBtn" class="p-3 sm:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition relative">
+                <i class="ph ph-image text-2xl"></i>
+                <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+            </button>
+            
+            <button id="captureBtn" class="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full border-4 border-gray-400 focus:outline-none hover:bg-gray-200 transition shadow-[0_0_15px_rgba(255,255,255,0.3)] flex-shrink-0"></button>
+            
+            <button id="reviewBtn" class="p-3 sm:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition relative flex items-center justify-center">
+                <i class="ph ph-check-circle text-2xl text-blue-400"></i>
+                <span id="pageCountBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hide shadow-md">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW: PREVIEW & SAVE (NEW SCAN)            -->
+    <!-- ========================================== -->
+    <div id="previewView" class="absolute inset-0 flex flex-col w-full h-full bg-gray-900 z-30 hide">
+        <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center shadow-md z-10">
+            <button id="backToCameraBtn" class="text-gray-300 hover:text-white flex items-center gap-1">
+                <i class="ph ph-caret-left text-xl"></i> Back
+            </button>
+            <h1 class="text-lg font-bold">Review Pages</h1>
+            <div class="w-16"></div> <!-- Spacer -->
+        </header>
+
+        <div class="flex-1 p-2 sm:p-4 flex flex-col items-center justify-center bg-gray-800 overflow-hidden relative w-full h-full">
+            <div class="flex-1 w-full flex items-center justify-center min-h-0 relative mb-4">
+                <img id="previewImage" class="max-w-full max-h-full rounded-lg shadow-xl object-contain" src="" alt="Captured scan">
+                <div class="absolute top-2 right-2 flex gap-2">
+                    <button id="retakePageBtn" class="bg-blue-600/80 hover:bg-blue-600 text-white p-2 rounded-full backdrop-blur-md shadow-lg" title="Retake">
+                        <i class="ph ph-camera text-lg"></i>
+                    </button>
+                    <button id="deletePageBtn" class="bg-red-600/80 hover:bg-red-600 text-white p-2 rounded-full backdrop-blur-md shadow-lg" title="Delete">
+                        <i class="ph ph-trash text-lg"></i>
+                    </button>
                 </div>
-                
-                <!-- Multi-page Thumbnail Strip -->
-                <div id="thumbnailStrip" class="w-full h-20 flex-shrink-0 flex gap-3 overflow-x-auto pb-2 snap-x px-2">
-                    <!-- Thumbnails injected via JS -->
-                </div>
-                
-                <canvas id="canvasElement" class="hide"></canvas>
+            </div>
+            
+            <div id="thumbnailStrip" class="w-full h-20 flex-shrink-0 flex gap-3 overflow-x-auto pb-2 snap-x px-2">
+                <!-- Thumbnails injected via JS -->
+            </div>
+            <canvas id="canvasElement" class="hide"></canvas>
+        </div>
+
+        <div class="flex-shrink-0 bg-gray-900 p-4 sm:p-5 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative z-20 w-full">
+            <div class="flex justify-between items-center">
+                <button id="addPageBtn" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition text-sm">
+                    <i class="ph ph-plus text-lg"></i> Add Page
+                </button>
+                <div class="text-sm text-gray-400 font-medium" id="pageCountDisplay">1 Page</div>
             </div>
 
-            <!-- Export Controls (Dedicated Bottom Bar - Fixed Height) -->
-            <div class="flex-shrink-0 bg-gray-900 p-4 sm:p-5 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.3)] flex flex-col gap-3 relative z-20 w-full">
-                
-                <div class="flex justify-between items-center mb-1">
-                    <button id="addPageBtn" class="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium bg-blue-400/10 px-3 py-1.5 rounded-full transition text-sm">
-                        <i class="ph ph-plus-circle text-lg"></i> Add Pages
-                    </button>
-                    <div class="text-xs sm:text-sm font-medium text-gray-300">Save Locally</div>
-                    <div class="w-24"></div> <!-- Spacer for flex alignment -->
-                </div>
+            <hr class="border-gray-700 my-1">
 
-                <div class="grid grid-cols-3 gap-2 sm:gap-3">
-                    <!-- Save Local -->
-                    <div class="flex flex-col gap-1">
-                        <button onclick="saveLocal('png')" class="bg-gray-800 hover:bg-gray-700 p-2 sm:p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition">
-                            <i class="ph ph-file-png text-xl sm:text-2xl text-green-400"></i>
-                            <span class="text-[10px] sm:text-xs font-medium">PNG</span>
-                        </button>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <button onclick="saveLocal('jpeg')" class="bg-gray-800 hover:bg-gray-700 p-2 sm:p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition">
-                            <i class="ph ph-file-jpg text-xl sm:text-2xl text-blue-400"></i>
-                            <span class="text-[10px] sm:text-xs font-medium">JPG</span>
-                        </button>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <button onclick="saveLocal('pdf')" class="bg-gray-800 hover:bg-gray-700 p-2 sm:p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition relative overflow-hidden">
-                            <div class="absolute inset-0 bg-red-500/10"></div>
-                            <i class="ph ph-file-pdf text-xl sm:text-2xl text-red-400 relative z-10"></i>
-                            <span class="text-[10px] sm:text-xs relative z-10 font-bold">PDF</span>
-                        </button>
-                    </div>
-                </div>
+            <div class="flex flex-col gap-2">
+                <label class="text-xs text-gray-400 font-medium">Document Title</label>
+                <input type="text" id="scanTitleInput" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500" placeholder="e.g. Receipt, Invoice...">
+            </div>
 
-                <hr class="border-gray-700 my-1">
+            <button id="saveToCloudBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transition">
+                <i class="ph ph-cloud-check text-xl"></i>
+                Save to My Scans
+            </button>
+        </div>
+    </div>
 
-                <div class="flex justify-between items-center">
-                    <div class="text-xs sm:text-sm font-medium text-gray-300">Share & Cloud</div>
-                    <select id="exportFormat" class="bg-gray-800 text-white text-[10px] sm:text-xs border border-gray-600 rounded-lg px-2 py-1 outline-none focus:border-blue-500 transition">
-                        <option value="pdf">Send as PDF</option>
-                        <option value="jpeg">Send as Image(s)</option>
-                    </select>
-                </div>
+    <!-- ========================================== -->
+    <!-- VIEW: SCAN VIEWER (VIEW SAVED SCANS)       -->
+    <!-- ========================================== -->
+    <div id="viewerView" class="absolute inset-0 flex flex-col w-full h-full bg-gray-900 z-40 hide">
+        <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center shadow-md z-10">
+            <button id="closeViewerBtn" class="text-gray-300 hover:text-white p-2">
+                <i class="ph ph-x text-2xl"></i>
+            </button>
+            <h1 class="text-lg font-bold truncate px-4 flex-1 text-center" id="viewerTitle">Document Title</h1>
+            <button id="deleteScanBtn" class="text-red-400 hover:text-red-300 p-2" title="Delete Scan">
+                <i class="ph ph-trash text-xl"></i>
+            </button>
+        </header>
 
-                <div class="grid grid-cols-2 gap-2 sm:gap-3">
-                    <!-- Share via Android Share Sheet -->
-                    <button id="shareBtn" class="bg-blue-600 hover:bg-blue-500 text-white p-2.5 sm:p-3 rounded-xl flex items-center justify-center gap-2 transition text-sm font-medium">
-                        <i class="ph ph-share-network text-lg sm:text-xl"></i>
-                        <span>Share</span>
-                    </button>
-                    
-                    <!-- Save to Drive -->
-                    <button id="driveBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 sm:p-3 rounded-xl flex items-center justify-center gap-2 transition text-sm font-medium">
-                        <i class="ph ph-google-drive-logo text-lg sm:text-xl"></i>
-                        <span>Drive</span>
-                    </button>
-                </div>
+        <div class="flex-1 p-2 sm:p-4 flex flex-col items-center justify-center bg-gray-800 overflow-hidden relative w-full h-full">
+            <div class="flex-1 w-full flex items-center justify-center min-h-0 relative mb-4">
+                <img id="viewerImage" class="max-w-full max-h-full rounded-lg shadow-xl object-contain" src="">
+            </div>
+            
+            <div id="viewerThumbnailStrip" class="w-full h-20 flex-shrink-0 flex gap-3 overflow-x-auto pb-2 snap-x px-2">
+                <!-- Viewer Thumbnails injected via JS -->
             </div>
         </div>
-    </main>
 
-    <!-- Toast Notification Container -->
-    <div id="toastContainer" class="fixed bottom-4 left-0 right-0 flex flex-col items-center pointer-events-none z-50 gap-2 px-4"></div>
+        <div class="flex-shrink-0 bg-gray-900 p-4 sm:p-5 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.3)] flex flex-col gap-3 relative z-20 w-full">
+            <div class="text-sm font-medium text-gray-300 mb-1">Export Options</div>
+            <div class="grid grid-cols-2 gap-3">
+                <button id="exportPdfBtn" class="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/50 p-3 rounded-xl flex items-center justify-center gap-2 transition font-bold">
+                    <i class="ph ph-file-pdf text-xl"></i> PDF
+                </button>
+                <button id="exportJpgBtn" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/50 p-3 rounded-xl flex items-center justify-center gap-2 transition font-bold">
+                    <i class="ph ph-file-jpg text-xl"></i> JPEG
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <script>
-        /**
-         * CONFIGURATION
-         * Replace this with your Google Apps Script Web App URL.
-         */
-        const GOOGLE_SCRIPT_URL = 'YOUR_WEB_APP_URL_HERE';
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-6 left-0 right-0 flex flex-col items-center pointer-events-none z-[200] gap-2 px-4"></div>
+
+    <!-- Firebase & Logic script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Initialization ---
+        let firebaseConfig = {};
+        try {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } catch (e) {
+            console.error("Missing Firebase Config");
+        }
         
-        // App State
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // --- App State ---
+        let currentUser = null;
+        let unsubscribeScans = null;
+        let savedScans = [];
+        let currentlyViewingScan = null;
+        
+        // Camera/Scanning State
         let currentStream = null;
-        let facingMode = 'environment'; // Back camera by default
-        let pages = []; // Array to hold multiple scanned pages { dataUrl, width, height }
+        let facingMode = 'environment';
+        let pages = []; // { dataUrl, width, height }
         let currentPageIndex = 0;
         let retakePageIndex = null;
-        let accessToken = null;
 
-        // DOM Elements
-        const videoElement = document.getElementById('videoElement');
-        const canvasElement = document.getElementById('canvasElement');
-        const previewImage = document.getElementById('previewImage');
-        const cameraView = document.getElementById('cameraView');
-        const previewView = document.getElementById('previewView');
-        const fileInput = document.getElementById('fileInput');
-        const pageCountBadge = document.getElementById('pageCountBadge');
-        const thumbnailStrip = document.getElementById('thumbnailStrip');
-        const startCameraOverlay = document.getElementById('startCameraOverlay');
-        const startCameraOverlayBtn = document.getElementById('startCameraOverlayBtn');
+        // --- DOM Elements ---
+        const getEl = id => document.getElementById(id);
+        const views = {
+            auth: getEl('authView'),
+            dashboard: getEl('dashboardView'),
+            camera: getEl('cameraView'),
+            preview: getEl('previewView'),
+            viewer: getEl('viewerView')
+        };
+        const canvasElement = getEl('canvasElement');
+        const videoElement = getEl('videoElement');
 
-        // ==========================================
-        // UI Helpers
-        // ==========================================
+        // --- UI Utilities ---
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
-            const colors = {
-                success: 'bg-green-600',
-                error: 'bg-red-600',
-                info: 'bg-gray-700'
-            };
-            toast.className = `${colors[type]} text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium toast-animate pointer-events-auto max-w-xs text-center`;
-            toast.textContent = message;
+            const colors = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-gray-800 border border-gray-700' };
+            toast.className = `${colors[type]} text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold toast-animate pointer-events-auto max-w-xs text-center flex items-center justify-center gap-2`;
             
-            const container = document.getElementById('toastContainer');
-            container.appendChild(toast);
+            const icon = type === 'success' ? '<i class="ph ph-check-circle text-lg"></i>' : 
+                         type === 'error' ? '<i class="ph ph-warning-circle text-lg"></i>' : 
+                         '<i class="ph ph-info text-lg"></i>';
+            
+            toast.innerHTML = `${icon} ${message}`;
+            getEl('toastContainer').appendChild(toast);
             
             setTimeout(() => {
                 toast.style.opacity = '0';
-                toast.style.transform = 'translateY(100%)';
+                toast.style.transform = 'translateY(-100%)';
                 toast.style.transition = 'all 0.3s ease-in';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
 
-        function switchView(view) {
-            if (view === 'camera') {
-                cameraView.classList.remove('hide');
-                previewView.classList.add('hide');
-                startCamera();
+        function switchView(viewName) {
+            Object.values(views).forEach(v => v.classList.add('hide'));
+            views[viewName].classList.remove('hide');
+            if (viewName !== 'camera') stopCamera();
+            if (viewName === 'camera') startCamera();
+        }
+
+        function showLoader(show) {
+            getEl('globalLoader').style.display = show ? 'flex' : 'none';
+        }
+
+        // --- Image Compression (Crucial for Firestore 1MB limits) ---
+        async function compressImage(dataUrl, quality = 0.7, maxDim = 1200) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.width, h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = Math.floor(h * (maxDim / w)); w = maxDim; }
+                        else { w = Math.floor(w * (maxDim / h)); h = maxDim; }
+                    }
+                    const cvs = document.createElement('canvas');
+                    cvs.width = w; cvs.height = h;
+                    cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+                    resolve(cvs.toDataURL('image/jpeg', quality));
+                };
+                img.src = dataUrl;
+            });
+        }
+
+        // --- Authentication Engine ---
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch(e) { console.error("Auth init error:", e); showLoader(false); }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            showLoader(false);
+            if (user && !user.isAnonymous) {
+                // Real user logged in
+                switchView('dashboard');
+                listenToScans();
             } else {
-                cameraView.classList.add('hide');
-                previewView.classList.remove('hide');
-                stopCamera();
+                // Anonymous or logged out -> Show Login Screen
+                switchView('auth');
+                if (unsubscribeScans) unsubscribeScans();
+            }
+        });
+
+        // Fake Email Generator for Username Login
+        const getEmail = (username) => `${username.trim().toLowerCase()}@docuscan.local`;
+
+        getEl('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const u = getEl('authUsername').value;
+            const p = getEl('authPassword').value;
+            if(!u || !p) return;
+            
+            showLoader(true);
+            try {
+                // If they are anonymous, we sign them out to sign them in cleanly
+                if(auth.currentUser?.isAnonymous) await signOut(auth);
+                await signInWithEmailAndPassword(auth, getEmail(u), p);
+                getEl('authForm').reset();
+            } catch (err) {
+                showLoader(false);
+                showToast("Login failed. Check username and password.", "error");
+            }
+        });
+
+        getEl('registerBtn').addEventListener('click', async () => {
+            const u = getEl('authUsername').value;
+            const p = getEl('authPassword').value;
+            if(!u || p.length < 6) return showToast("Enter username & 6+ char password", "error");
+            
+            showLoader(true);
+            try {
+                if(auth.currentUser?.isAnonymous) await signOut(auth);
+                await createUserWithEmailAndPassword(auth, getEmail(u), p);
+                showToast("Account created successfully!", "success");
+                getEl('authForm').reset();
+            } catch (err) {
+                showLoader(false);
+                if(err.code === 'auth/email-already-in-use') showToast("Username already exists.", "error");
+                else showToast("Registration failed.", "error");
+            }
+        });
+
+        getEl('logoutBtn').addEventListener('click', async () => {
+            await signOut(auth);
+            // Re-init anonymous auth to keep Firebase happy with the environment
+            initAuth(); 
+        });
+
+        // --- Dashboard & Firestore Engine ---
+        function listenToScans() {
+            if (!currentUser || currentUser.isAnonymous) return;
+            showLoader(true);
+            
+            const scansRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'scans');
+            
+            // Rule 2: No complex queries. Fetch all, sort in JS.
+            unsubscribeScans = onSnapshot(scansRef, (snapshot) => {
+                savedScans = [];
+                snapshot.forEach(doc => {
+                    savedScans.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Sort by timestamp descending
+                savedScans.sort((a, b) => b.timestamp - a.timestamp);
+                renderDashboard();
+                showLoader(false);
+            }, (error) => {
+                console.error("Firestore error:", error);
+                showToast("Failed to load scans", "error");
+                showLoader(false);
+            });
+        }
+
+        function renderDashboard() {
+            const list = getEl('scansList');
+            const emptyState = getEl('emptyDashboardState');
+            list.innerHTML = '';
+            
+            if (savedScans.length === 0) {
+                emptyState.classList.remove('hide');
+            } else {
+                emptyState.classList.add('hide');
+                savedScans.forEach(scan => {
+                    const dateStr = new Date(scan.timestamp).toLocaleDateString();
+                    const card = document.createElement('div');
+                    card.className = "bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700 cursor-pointer hover:border-blue-500 transition active:scale-95 flex flex-col";
+                    card.innerHTML = `
+                        <div class="h-32 w-full bg-gray-900 overflow-hidden relative">
+                            <img src="${scan.pages[0]}" class="w-full h-full object-cover opacity-80" alt="Thumbnail">
+                            <div class="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-md">
+                                ${scan.pages.length} Page${scan.pages.length > 1 ? 's' : ''}
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <div class="font-bold text-sm truncate">${scan.title || 'Untitled Scan'}</div>
+                            <div class="text-xs text-gray-400 mt-1">${dateStr}</div>
+                        </div>
+                    `;
+                    card.onclick = () => openScanViewer(scan);
+                    list.appendChild(card);
+                });
             }
         }
 
-        // ==========================================
-        // Camera Engine
-        // ==========================================
+        // --- Camera Engine ---
         async function startCamera() {
-            stopCamera(); // Stop any existing streams
             try {
                 currentStream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: facingMode,
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    },
+                    video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
                     audio: false
                 });
                 videoElement.srcObject = currentStream;
-                startCameraOverlay.classList.add('hide'); // Hide overlay once started
             } catch (err) {
-                console.error("Error accessing camera:", err);
-                showToast("Camera access denied or unavailable. You can still upload from gallery.", "error");
+                showToast("Camera unavailable.", "error");
             }
         }
 
         function stopCamera() {
             if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
+                currentStream.getTracks().forEach(t => t.stop());
                 currentStream = null;
             }
         }
 
-        startCameraOverlayBtn.addEventListener('click', startCamera);
+        getEl('newScanFab').addEventListener('click', () => {
+            pages = [];
+            currentPageIndex = 0;
+            retakePageIndex = null;
+            getEl('pageCountBadge').classList.add('hide');
+            switchView('camera');
+        });
 
-        document.getElementById('switchCameraBtn').addEventListener('click', () => {
+        getEl('cancelScanBtn').addEventListener('click', () => switchView('dashboard'));
+        getEl('switchCameraBtn').addEventListener('click', () => {
             facingMode = facingMode === 'environment' ? 'user' : 'environment';
             startCamera();
         });
 
-        // ==========================================
-        // Capture & Import Logic
-        // ==========================================
-        function captureImage(imageSource, width, height) {
+        function handleCapture(imageSource, width, height) {
             canvasElement.width = width;
             canvasElement.height = height;
             const ctx = canvasElement.getContext('2d');
             ctx.drawImage(imageSource, 0, 0, width, height);
             
-            // Store as high-quality JPEG to manage memory across multiple pages
-            const dataUrl = canvasElement.toDataURL('image/jpeg', 0.95);
+            const dataUrl = canvasElement.toDataURL('image/jpeg', 0.9);
             
             if (retakePageIndex !== null) {
                 pages[retakePageIndex] = { dataUrl, width, height };
                 showToast(`Page ${retakePageIndex + 1} retaken!`);
-                const indexToSelect = retakePageIndex;
-                retakePageIndex = null; // Reset retake state
-                
-                // Switch back to preview to see the retaken image
+                currentPageIndex = retakePageIndex;
+                retakePageIndex = null;
                 switchView('preview');
-                renderThumbnails();
-                selectPage(indexToSelect);
+                renderPreviewThumbnails();
             } else {
                 pages.push({ dataUrl, width, height });
-                
-                // Update UI Counter
-                pageCountBadge.textContent = pages.length;
-                pageCountBadge.classList.remove('hide');
-                
-                showToast(`Page ${pages.length} captured!`);
+                getEl('pageCountBadge').textContent = pages.length;
+                getEl('pageCountBadge').classList.remove('hide');
+                showToast(`Page ${pages.length} captured`);
             }
         }
 
-        document.getElementById('captureBtn').addEventListener('click', () => {
+        getEl('captureBtn').addEventListener('click', () => {
             if (!videoElement.videoWidth) return;
-            // Add a quick flash effect
-            const flash = document.createElement('div');
-            flash.className = 'absolute inset-0 bg-white opacity-50 z-50 transition-opacity duration-300';
             
-            // Append flash to the video wrapper
+            const flash = document.createElement('div');
+            flash.className = 'absolute inset-0 bg-white opacity-75 z-50 transition-opacity duration-300';
             videoElement.parentElement.appendChild(flash);
-            setTimeout(() => flash.remove(), 300);
+            setTimeout(() => flash.remove(), 200);
 
-            captureImage(videoElement, videoElement.videoWidth, videoElement.videoHeight);
+            handleCapture(videoElement, videoElement.videoWidth, videoElement.videoHeight);
         });
 
-        fileInput.addEventListener('change', (e) => {
+        getEl('fileInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const img = new Image();
-                img.onload = () => captureImage(img, img.width, img.height);
+                img.onload = () => handleCapture(img, img.width, img.height);
                 img.src = URL.createObjectURL(file);
             }
         });
 
-        document.getElementById('reviewBtn').addEventListener('click', () => {
-            if (pages.length === 0) {
-                return showToast("Please capture at least one page.", "error");
-            }
+        // --- Preview Engine (New Scans) ---
+        getEl('reviewBtn').addEventListener('click', () => {
+            if (pages.length === 0) return showToast("Capture a page first", "error");
+            retakePageIndex = null;
             
-            // Cancel retake if user clicks review instead of capturing
-            if (retakePageIndex !== null) {
-                retakePageIndex = null;
-            }
+            // Auto-generate title
+            const d = new Date();
+            getEl('scanTitleInput').value = `Scan ${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
             
             switchView('preview');
-            renderThumbnails();
-            selectPage(currentPageIndex);
+            renderPreviewThumbnails();
         });
 
-        document.getElementById('addPageBtn').addEventListener('click', () => {
-            retakePageIndex = null; // Ensure we are appending new pages
-            switchView('camera');
-        });
-
-        document.getElementById('retakePageBtn').addEventListener('click', () => {
+        getEl('backToCameraBtn').addEventListener('click', () => switchView('camera'));
+        getEl('addPageBtn').addEventListener('click', () => switchView('camera'));
+        
+        getEl('retakePageBtn').addEventListener('click', () => {
             retakePageIndex = currentPageIndex;
             switchView('camera');
-            showToast(`Retaking page ${retakePageIndex + 1}`, "info");
         });
 
-        // ==========================================
-        // Multi-page UI Logic
-        // ==========================================
-        function renderThumbnails() {
-            thumbnailStrip.innerHTML = '';
-            pages.forEach((page, index) => {
-                const thumb = document.createElement('img');
-                thumb.src = page.dataUrl;
-                thumb.className = `h-full w-auto object-cover rounded-md cursor-pointer border-2 transition-all ${index === currentPageIndex ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
-                thumb.onclick = () => selectPage(index);
-                thumbnailStrip.appendChild(thumb);
-            });
-        }
-
-        function selectPage(index) {
-            if (pages.length === 0) return;
-            currentPageIndex = index;
-            previewImage.src = pages[index].dataUrl;
-            renderThumbnails(); // Re-render to update selected border
-        }
-
-        document.getElementById('deletePageBtn').addEventListener('click', () => {
+        getEl('deletePageBtn').addEventListener('click', () => {
             pages.splice(currentPageIndex, 1);
             if (pages.length === 0) {
-                pageCountBadge.classList.add('hide');
-                pageCountBadge.textContent = '0';
+                getEl('pageCountBadge').classList.add('hide');
                 switchView('camera');
             } else {
-                pageCountBadge.textContent = pages.length;
-                selectPage(Math.max(0, currentPageIndex - 1));
+                currentPageIndex = Math.max(0, currentPageIndex - 1);
+                getEl('pageCountBadge').textContent = pages.length;
+                renderPreviewThumbnails();
             }
         });
 
-        // ==========================================
-        // Export & Conversion Engine (Local)
-        // ==========================================
-        async function getPDFBlob() {
-            const { jsPDF } = window.jspdf;
-            let doc;
+        function renderPreviewThumbnails() {
+            const strip = getEl('thumbnailStrip');
+            strip.innerHTML = '';
+            getEl('pageCountDisplay').textContent = `${pages.length} Page${pages.length>1?'s':''}`;
             
-            pages.forEach((page, index) => {
-                const orientation = page.width > page.height ? 'l' : 'p';
-                if (index === 0) {
-                    doc = new jsPDF({ orientation: orientation, unit: 'px', format: [page.width, page.height] });
-                } else {
-                    doc.addPage([page.width, page.height], orientation);
-                }
-                doc.addImage(page.dataUrl, 'JPEG', 0, 0, page.width, page.height);
+            pages.forEach((p, idx) => {
+                const img = document.createElement('img');
+                img.src = p.dataUrl;
+                img.className = `h-full w-auto object-cover rounded-md cursor-pointer border-2 transition-all ${idx === currentPageIndex ? 'border-blue-500 scale-105' : 'border-transparent opacity-50'}`;
+                img.onclick = () => {
+                    currentPageIndex = idx;
+                    getEl('previewImage').src = pages[idx].dataUrl;
+                    renderPreviewThumbnails();
+                };
+                strip.appendChild(img);
             });
-            
-            return doc.output('blob');
+            getEl('previewImage').src = pages[currentPageIndex].dataUrl;
         }
 
-        async function saveLocal(format) {
+        // --- Save to Cloud Logic ---
+        getEl('saveToCloudBtn').addEventListener('click', async () => {
+            if (!currentUser) return showToast("Not logged in!", "error");
             if (pages.length === 0) return;
-            
-            const timestamp = new Date().getTime();
-            let fileName = `DocuScan_${timestamp}`;
 
-            if (format === 'pdf') {
-                try {
-                    showToast("Generating PDF...", "info");
-                    const pdfBlob = await getPDFBlob();
-                    
-                    // Create download link for PDF Blob
-                    const url = URL.createObjectURL(pdfBlob);
-                    const link = document.createElement('a');
-                    link.download = `${fileName}.pdf`;
-                    link.href = url;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                    
-                    showToast("PDF saved locally!", "success");
-                } catch (e) {
-                    console.error(e);
-                    showToast("Failed to generate PDF", "error");
+            showLoader(true);
+            const title = getEl('scanTitleInput').value || 'Untitled Scan';
+            
+            try {
+                // Compress all pages before uploading to avoid 1MB limit
+                const compressedPages = [];
+                for (let p of pages) {
+                    const compressed = await compressImage(p.dataUrl, 0.6, 1000); // Heavy compression for cloud
+                    compressedPages.push(compressed);
                 }
-                return;
-            }
 
-            // For PNG and JPEG (Current page only)
-            const currentPage = pages[currentPageIndex];
-            let dataUrl = currentPage.dataUrl;
+                const docData = {
+                    title: title,
+                    timestamp: Date.now(),
+                    pages: compressedPages
+                };
+
+                const scansRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'scans');
+                await addDoc(scansRef, docData);
+                
+                showToast("Saved to My Scans successfully!", "success");
+                pages = []; // Clear current
+                switchView('dashboard');
+            } catch (e) {
+                console.error("Save error", e);
+                showToast("Error saving to cloud. File might be too large.", "error");
+            } finally {
+                showLoader(false);
+            }
+        });
+
+        // --- Viewer Engine (Saved Scans) ---
+        let viewerPageIndex = 0;
+
+        function openScanViewer(scan) {
+            currentlyViewingScan = scan;
+            viewerPageIndex = 0;
+            getEl('viewerTitle').textContent = scan.title;
+            switchView('viewer');
+            renderViewerThumbnails();
+        }
+
+        getEl('closeViewerBtn').addEventListener('click', () => switchView('dashboard'));
+
+        function renderViewerThumbnails() {
+            if(!currentlyViewingScan) return;
+            const strip = getEl('viewerThumbnailStrip');
+            strip.innerHTML = '';
             
-            if (format === 'png') {
-                // Convert stored JPEG back to PNG via canvas
-                const img = new Image();
-                img.src = currentPage.dataUrl;
-                await new Promise(r => img.onload = r);
-                canvasElement.width = img.width;
-                canvasElement.height = img.height;
-                canvasElement.getContext('2d').drawImage(img, 0, 0);
-                dataUrl = canvasElement.toDataURL('image/png');
-                fileName += `_page${currentPageIndex + 1}.png`;
-            } else if (format === 'jpeg') {
-                fileName += `_page${currentPageIndex + 1}.jpg`;
-            }
+            currentlyViewingScan.pages.forEach((pStr, idx) => {
+                const img = document.createElement('img');
+                img.src = pStr;
+                img.className = `h-full w-auto object-cover rounded-md cursor-pointer border-2 transition-all ${idx === viewerPageIndex ? 'border-blue-500 scale-105' : 'border-transparent opacity-50'}`;
+                img.onclick = () => {
+                    viewerPageIndex = idx;
+                    getEl('viewerImage').src = currentlyViewingScan.pages[idx];
+                    renderViewerThumbnails();
+                };
+                strip.appendChild(img);
+            });
+            getEl('viewerImage').src = currentlyViewingScan.pages[viewerPageIndex];
+        }
 
-            // Create temporary download link
+        getEl('deleteScanBtn').addEventListener('click', async () => {
+            if(!confirm("Delete this scan permanently?")) return;
+            if(!currentUser || !currentlyViewingScan) return;
+            
+            showLoader(true);
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'scans', currentlyViewingScan.id);
+                await deleteDoc(docRef);
+                showToast("Scan deleted", "success");
+                switchView('dashboard');
+            } catch (e) {
+                showToast("Failed to delete", "error");
+            } finally {
+                showLoader(false);
+            }
+        });
+
+        // --- Local Exporting from Viewer ---
+        async function buildPDF(base64Array) {
+            const { jsPDF } = window.jspdf;
+            let doc = new jsPDF({ format: 'a4' });
+            
+            for (let i = 0; i < base64Array.length; i++) {
+                if (i > 0) doc.addPage();
+                
+                // Get img dimensions to fit on A4
+                const imgProps = doc.getImageProperties(base64Array[i]);
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                doc.addImage(base64Array[i], 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            }
+            return doc;
+        }
+
+        getEl('exportPdfBtn').addEventListener('click', async () => {
+            if(!currentlyViewingScan) return;
+            showToast("Generating PDF...", "info");
+            try {
+                const doc = await buildPDF(currentlyViewingScan.pages);
+                doc.save(`${currentlyViewingScan.title.replace(/ /g, '_')}.pdf`);
+                showToast("PDF Downloaded!", "success");
+            } catch (e) { showToast("PDF Generation Failed", "error"); }
+        });
+
+        getEl('exportJpgBtn').addEventListener('click', () => {
+            if(!currentlyViewingScan) return;
             const link = document.createElement('a');
-            link.download = fileName;
-            link.href = dataUrl;
+            link.download = `${currentlyViewingScan.title}_page${viewerPageIndex + 1}.jpg`;
+            link.href = currentlyViewingScan.pages[viewerPageIndex];
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            showToast(`${format.toUpperCase()} saved locally!`, "success");
-        }
-
-        // ==========================================
-        // Native Web Sharing (Bluetooth, Messenger, Email)
-        // ==========================================
-        document.getElementById('shareBtn').addEventListener('click', async () => {
-            if (pages.length === 0) return showToast("No document to share", "error");
-
-            const format = document.getElementById('exportFormat').value;
-            const timestamp = new Date().getTime();
-            
-            try {
-                let filesToShare = [];
-                let titleText = '';
-
-                if (format === 'pdf') {
-                    showToast("Preparing PDF...", "info");
-                    const pdfBlob = await getPDFBlob();
-                    const file = new File([pdfBlob], `DocuScan_${timestamp}.pdf`, { type: 'application/pdf' });
-                    filesToShare = [file];
-                    titleText = pages.length > 1 ? 'Scanned Multi-page Document (PDF)' : 'Scanned Document (PDF)';
-                } else {
-                    showToast("Preparing Image(s)...", "info");
-                    titleText = 'Scanned Image(s)';
-                    for (let i = 0; i < pages.length; i++) {
-                        const res = await fetch(pages[i].dataUrl);
-                        const blob = await res.blob();
-                        const fileName = pages.length > 1 ? `DocuScan_${timestamp}_page${i+1}.jpg` : `DocuScan_${timestamp}.jpg`;
-                        filesToShare.push(new File([blob], fileName, { type: 'image/jpeg' }));
-                    }
-                }
-
-                if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
-                    await navigator.share({
-                        files: filesToShare,
-                        title: titleText,
-                        text: 'Here is a document I scanned using DocuScan.'
-                    });
-                    showToast("Shared successfully", "success");
-                } else {
-                    showToast("Web Share API not supported for this file type/amount on this device.", "error");
-                }
-            } catch (error) {
-                if (error.name !== 'AbortError') {
-                    console.error('Share failed:', error);
-                    showToast("Failed to share", "error");
-                }
-            }
+            showToast("Image Downloaded!", "success");
         });
 
-        // ==========================================
-        // Google Drive Integration Engine
-        // ==========================================
-        
-        window.onload = function () {
-            // Camera no longer starts automatically on load.
-            // User will initiate it via the Open Camera button.
-        };
+        // --- Boot ---
+        initAuth();
 
-        async function uploadToDrive(blob, fileName, mimeType) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = async () => {
-                    const base64data = reader.result;
-                    
-                    try {
-                        const response = await fetch(GOOGLE_SCRIPT_URL, {
-                            method: 'POST',
-                            // text/plain prevents CORS preflight issues with Google Apps Script
-                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                            body: JSON.stringify({
-                                fileName: fileName,
-                                mimeType: mimeType,
-                                base64: base64data
-                            })
-                        });
-                        
-                        const result = await response.json();
-                        if (result.status === 'success') {
-                            resolve(result);
-                        } else {
-                            reject(new Error(result.message));
-                        }
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                reader.readAsDataURL(blob);
-            });
-        }
-
-        document.getElementById('driveBtn').addEventListener('click', async () => {
-            if (pages.length === 0) return showToast("No document to upload", "error");
-            if (GOOGLE_SCRIPT_URL === 'YOUR_WEB_APP_URL_HERE') {
-                return showToast("Please configure GOOGLE_SCRIPT_URL in the code first.", "error");
-            }
-
-            const format = document.getElementById('exportFormat').value;
-            const timestamp = new Date().getTime();
-
-            try {
-                if (format === 'pdf') {
-                    showToast("Uploading PDF to Drive...", "info");
-                    const pdfBlob = await getPDFBlob();
-                    await uploadToDrive(pdfBlob, `DocuScan_${timestamp}.pdf`, 'application/pdf');
-                    showToast("PDF uploaded successfully!", "success");
-                } else {
-                    showToast(`Uploading ${pages.length} image(s) to Drive...`, "info");
-                    for (let i = 0; i < pages.length; i++) {
-                        const res = await fetch(pages[i].dataUrl);
-                        const blob = await res.blob();
-                        const fileName = pages.length > 1 ? `DocuScan_${timestamp}_page${i+1}.jpg` : `DocuScan_${timestamp}.jpg`;
-                        await uploadToDrive(blob, fileName, 'image/jpeg');
-                    }
-                    showToast("Image(s) uploaded successfully!", "success");
-                }
-            } catch (error) {
-                console.error("Upload error:", error);
-                showToast("Failed to upload. Check console or Script URL.", "error");
-            }
-        });
-
-        // ==========================================
-        // PWA Service Worker Registration
-        // ==========================================
-        if('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('ServiceWorker registration failed: ', error);
-                    });
-            });
-        }
     </script>
 </body>
 </html>
