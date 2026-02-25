@@ -14,751 +14,421 @@
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <!-- Cropper.js for Image Cropping -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-
     <style>
         html, body { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             width: 100%; height: 100%; margin: 0; padding: 0;
-            background-color: #111827; color: white;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden; touch-action: none;
-            -webkit-tap-highlight-color: transparent;
+            -webkit-tap-highlight-color: transparent; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #111827; /* Tailwind gray-900 */
         }
-        
-        /* Custom Scrollbar */
-        .thumb-scroll::-webkit-scrollbar { height: 6px; }
-        .thumb-scroll::-webkit-scrollbar-track { background: transparent; }
-        .thumb-scroll::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 4px; }
-
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .slide-up { animation: slideUp 0.3s ease-out forwards; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
-
-        /* Filter Preview Classes */
-        .filter-grayscale { filter: grayscale(100%); }
-        .filter-bw { filter: grayscale(100%) contrast(250%); }
-
-        /* Camera Flash Overlay */
-        #flashOverlay {
-            transition: opacity 0.1s ease-out;
-            pointer-events: none;
-        }
+        .hide { display: none !important; }
+        .thumb-scroll::-webkit-scrollbar { width: 6px; }
+        .thumb-scroll::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 10px; }
     </style>
 </head>
-<body class="flex flex-col relative text-gray-100">
+<body class="text-white">
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full text-sm font-semibold shadow-lg transition-all duration-300 opacity-0 pointer-events-none flex items-center gap-2">
-        <i id="toastIcon" class="ph text-lg"></i>
-        <span id="toastMsg">Notification</span>
-    </div>
-
-    <!-- 1. LOGIN SCREEN -->
-    <div id="loginScreen" class="absolute inset-0 z-40 bg-gray-900 flex flex-col items-center justify-center p-6 fade-in">
-        <div class="w-full max-w-sm bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-700">
-            <div class="flex flex-col items-center mb-8">
-                <div class="bg-blue-600 p-4 rounded-full mb-4">
-                    <i class="ph ph-scan text-4xl text-white"></i>
-                </div>
-                <h1 class="text-2xl font-bold tracking-tight">DocuScan Pro</h1>
-                <p class="text-gray-400 text-sm mt-1 text-center" id="authSubtitle">Login to sync scans to your Drive</p>
-            </div>
-            
-            <form id="loginForm" class="flex flex-col gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1 ml-1">Username</label>
-                    <input type="text" id="usernameInput" required placeholder="e.g. john_doe"
-                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1 ml-1">Password</label>
-                    <div class="relative">
-                        <input type="password" id="passwordInput" required placeholder="••••••••"
-                               class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors pr-12">
-                        <button type="button" id="togglePasswordBtn" class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors">
-                            <i class="ph ph-eye text-xl" id="togglePasswordIcon"></i>
-                        </button>
-                    </div>
-                </div>
-                <button type="submit" id="authSubmitBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <i class="ph ph-sign-in" id="authSubmitIcon"></i> <span id="authSubmitText">Sign In</span>
-                </button>
-
-                <div class="mt-4 text-center text-sm text-gray-400">
-                    <span id="authModeText">Don't have an account?</span>
-                    <button type="button" id="toggleAuthModeBtn" class="text-blue-400 hover:text-blue-300 font-medium ml-1">Register here</button>
-                </div>
-            </form>
-        </div>
+    <div id="app" class="relative w-full h-full">
         
-        <!-- PVNJ Footer -->
-        <div class="absolute bottom-4 w-full text-center pointer-events-none">
-            <span class="text-gray-500" style="font-size: 9pt; font-style: italic;">Developed by PVNJ</span>
+        <!-- ========================================== -->
+        <!-- 1. CAMERA VIEW                             -->
+        <!-- ========================================== -->
+        <div id="cameraView" class="absolute inset-0 z-10 flex flex-col bg-black">
+            <!-- Header (My Files Button added here) -->
+            <header class="absolute top-0 left-0 right-0 p-4 z-20 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">U</div>
+                    <span class="font-medium text-sm drop-shadow-md">Demo User</span>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <button id="viewDriveBtn" class="text-blue-400 hover:text-blue-300 p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow" title="My Files">
+                        <i class="ph ph-folder-open text-xl"></i>
+                    </button>
+                    <button id="switchCameraBtn" class="text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow">
+                        <i class="ph ph-camera-rotate text-xl"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Video Feed -->
+            <video id="videoElement" class="w-full h-full object-cover" autoplay playsinline></video>
+            
+            <!-- Bottom Controls -->
+            <div class="absolute bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-black to-transparent flex justify-center items-center z-20">
+                <div class="flex items-center gap-8">
+                    <!-- Placeholder to balance flex layout -->
+                    <div class="w-14 h-14"></div>
+                    
+                    <!-- Capture Button -->
+                    <button id="captureBtn" class="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-white/20 active:bg-white/60 transition-colors shadow-lg shadow-black/50">
+                        <div class="w-16 h-16 rounded-full bg-white"></div>
+                    </button>
+                    
+                    <!-- Viewer Access / Thumbnail -->
+                    <button id="goToViewerBtn" class="relative w-14 h-14 rounded-xl overflow-hidden border-2 border-gray-400 bg-gray-800 flex items-center justify-center hide shadow-lg">
+                        <img id="lastThumb" src="" class="w-full h-full object-cover hide">
+                        <span id="pageBadge" class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow hide">0</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Hidden Canvas for capturing -->
+            <canvas id="canvasElement" class="hide"></canvas>
         </div>
-    </div>
 
-    <!-- 2. MAIN APP SCREEN -->
-    <div id="mainApp" class="hidden flex-col h-full w-full absolute inset-0 z-10 bg-black">
-        
-        <!-- Header -->
-        <header class="absolute top-0 left-0 right-0 p-4 z-20 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm" id="userInitial">U</div>
-                <span class="font-medium text-sm drop-shadow-md" id="displayUsername">User</span>
-            </div>
-            <div class="flex gap-2 sm:gap-4 items-center">
-                <!-- View Drive Files Button -->
-                <button id="viewDriveBtn" class="text-blue-400 hover:text-blue-300 p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors" title="My Files">
-                    <i class="ph ph-folder-open text-xl"></i>
+        <!-- ========================================== -->
+        <!-- 2. VIEWER VIEW                             -->
+        <!-- ========================================== -->
+        <div id="viewerView" class="absolute inset-0 z-30 flex flex-col bg-gray-900 hide">
+            <!-- Header (Create New Button added here) -->
+            <header class="p-4 flex justify-between items-center bg-gray-800 border-b border-gray-700 shadow-sm">
+                <button id="backToCameraBtn" class="p-2 text-white hover:bg-gray-700 rounded-lg flex items-center gap-1 transition-colors">
+                    <i class="ph ph-caret-left text-xl"></i> <span class="text-sm font-medium">Add More</span>
                 </button>
-                <!-- Camera Toggle Button -->
-                <button id="toggleCameraBtn" class="text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors">
-                    <i class="ph ph-video-camera text-xl" id="cameraStateIcon"></i>
+                
+                <button id="newScanBtn" class="p-2 text-red-400 hover:text-red-300 hover:bg-gray-700/50 rounded-lg flex items-center gap-1 transition-colors">
+                    <i class="ph ph-file-dashed text-xl"></i> <span class="text-sm font-medium">New Scan</span>
                 </button>
-                <!-- Flash Toggle Button -->
-                <button id="flashBtn" class="hidden text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md">
-                    <i class="ph ph-lightning-slash text-xl" id="flashIcon"></i>
-                </button>
-                <button id="logoutBtn" class="text-gray-300 hover:text-white p-2 ml-2">
-                    <i class="ph ph-sign-out text-xl"></i>
-                </button>
-            </div>
-        </header>
-
-        <!-- Camera Viewfinder -->
-        <main class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
-            <video id="cameraFeed" autoplay playsinline class="w-full h-full object-cover transition-opacity duration-300"></video>
+            </header>
             
-            <!-- Camera Off Placeholder -->
-            <div id="cameraOffScreen" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10">
-                <i class="ph ph-video-camera-slash text-6xl text-gray-600 mb-4"></i>
-                <p class="text-gray-400 font-medium">Camera is turned off</p>
-                <button id="turnOnCameraOverlayBtn" class="mt-6 bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-full text-sm font-medium transition-colors">Turn On Camera</button>
-            </div>
-
-            <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 z-30"></div>
-            
-            <!-- Scanning Overlay Grid -->
-            <div id="scanOverlay" class="absolute inset-4 border-2 border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
-                <div class="flex justify-between w-full">
-                    <div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
-                    <div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
-                </div>
-                <div class="flex justify-between w-full">
-                    <div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
-                    <div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
-                </div>
-            </div>
-        </main>
-
-        <canvas id="captureCanvas" class="hidden"></canvas>
-
-        <!-- Bottom Controls -->
-        <footer class="bg-gray-900 rounded-t-3xl p-6 pb-4 flex flex-col gap-5 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-            <!-- Thumbnails Strip -->
-            <div class="h-20 w-full relative">
-                <div id="thumbnailContainer" class="flex gap-3 overflow-x-auto thumb-scroll h-full items-center pb-2">
-                    <p id="emptyThumbMsg" class="text-gray-500 text-sm italic w-full text-center">No pages scanned yet</p>
+            <!-- Image Carousel Area -->
+            <div class="flex-1 relative flex items-center justify-center p-4 overflow-hidden">
+                <img id="viewerImage" src="" class="max-w-full max-h-full object-contain shadow-2xl transition-transform">
+                
+                <!-- Pagination -->
+                <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-6 items-center">
+                    <button id="prevPageBtn" class="p-3 bg-black/70 rounded-full backdrop-blur text-white hover:bg-black transition-colors shadow-lg"><i class="ph ph-caret-left text-xl"></i></button>
+                    <div class="bg-black/70 backdrop-blur text-white px-5 py-2 rounded-full font-medium shadow-lg tracking-wide" id="pageIndicator">1 / 1</div>
+                    <button id="nextPageBtn" class="p-3 bg-black/70 rounded-full backdrop-blur text-white hover:bg-black transition-colors shadow-lg"><i class="ph ph-caret-right text-xl"></i></button>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between">
-                <button id="exportPdfBtn" class="flex flex-col items-center gap-1 text-gray-400 hover:text-white disabled:opacity-50" disabled>
-                    <div class="bg-gray-800 p-3 rounded-full"><i class="ph ph-file-pdf text-xl"></i></div>
-                    <span class="text-[10px] font-medium uppercase tracking-wider">Save PDF</span>
+            <!-- Bottom Actions -->
+            <div class="bg-gray-800 p-4 pb-6 border-t border-gray-700 grid grid-cols-3 gap-2 shadow-[0_-10px_20px_rgba(0,0,0,0.2)]">
+                <button id="exportPdfBtn" class="flex flex-col items-center gap-1.5 p-3 text-gray-300 hover:text-white rounded-xl hover:bg-gray-700 transition-colors">
+                    <i class="ph ph-download-simple text-2xl"></i>
+                    <span class="text-xs font-semibold">Save PDF</span>
                 </button>
-
-                <button id="captureBtn" class="w-20 h-20 bg-white rounded-full flex items-center justify-center p-1 active:scale-95 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                    <div class="w-full h-full border-4 border-gray-900 rounded-full flex items-center justify-center bg-white hover:bg-gray-100 disabled:opacity-50" id="innerCaptureBtn">
-                        <i class="ph ph-camera text-3xl text-gray-900"></i>
-                    </div>
+                <button id="exportJpgBtn" class="flex flex-col items-center gap-1.5 p-3 text-gray-300 hover:text-white rounded-xl hover:bg-gray-700 transition-colors">
+                    <i class="ph ph-image text-2xl"></i>
+                    <span class="text-xs font-semibold">Save JPG</span>
                 </button>
-
-                <button id="uploadDriveBtn" class="flex flex-col items-center gap-1 text-gray-400 hover:text-blue-400 disabled:opacity-50" disabled>
-                    <div class="bg-gray-800 p-3 rounded-full"><i class="ph ph-cloud-arrow-up text-xl"></i></div>
-                    <span class="text-[10px] font-medium uppercase tracking-wider">To Drive</span>
-                </button>
-            </div>
-            
-            <!-- PVNJ Footer -->
-            <div class="text-center w-full mt-[-5px]">
-                <span class="text-gray-500" style="font-size: 9pt; font-style: italic;">Developed by PVNJ</span>
-            </div>
-        </footer>
-    </div>
-
-    <!-- 3. IMAGE EDIT / CROP SCREEN -->
-    <div id="editScreen" class="hidden absolute inset-0 z-50 bg-black flex flex-col fade-in">
-        <header class="p-4 bg-gray-900 flex justify-between items-center shadow-md z-10">
-            <button id="cancelEditBtn" class="text-gray-400 hover:text-white flex items-center gap-1">
-                <i class="ph ph-x text-xl"></i> Cancel
-            </button>
-            <span class="font-semibold text-sm">Crop & Filter</span>
-            <button id="saveEditBtn" class="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1">
-                <i class="ph ph-check text-xl"></i> Done
-            </button>
-        </header>
-
-        <main class="flex-1 relative bg-gray-800 overflow-hidden flex items-center justify-center p-4">
-            <!-- Cropper JS Container -->
-            <img id="editImage" src="" class="max-w-full max-h-full hidden">
-        </main>
-
-        <footer class="p-6 bg-gray-900 flex justify-center gap-6">
-            <button class="filter-btn flex flex-col items-center gap-2 text-blue-400" data-filter="original">
-                <div class="w-12 h-12 rounded-full border-2 border-current overflow-hidden">
-                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="w-full h-full object-cover bg-gray-500">
-                </div>
-                <span class="text-xs font-medium">Original</span>
-            </button>
-            <button class="filter-btn flex flex-col items-center gap-2 text-gray-400 hover:text-gray-200" data-filter="grayscale">
-                <div class="w-12 h-12 rounded-full border-2 border-transparent overflow-hidden">
-                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="w-full h-full object-cover bg-gray-500 filter-grayscale">
-                </div>
-                <span class="text-xs font-medium">Grayscale</span>
-            </button>
-            <button class="filter-btn flex flex-col items-center gap-2 text-gray-400 hover:text-gray-200" data-filter="bw">
-                <div class="w-12 h-12 rounded-full border-2 border-transparent overflow-hidden">
-                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" class="w-full h-full object-cover bg-gray-500 filter-bw">
-                </div>
-                <span class="text-xs font-medium">B & W</span>
-            </button>
-        </footer>
-    </div>
-
-    <!-- 4. SAVE TO DRIVE MODAL -->
-    <div id="saveModal" class="hidden fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
-        <div class="bg-gray-800 rounded-2xl w-full max-w-sm p-6 border border-gray-700 slide-up">
-            <h2 class="text-xl font-bold mb-4">Save to Google Drive</h2>
-            
-            <label class="block text-xs text-gray-400 mb-1">Document Title</label>
-            <input type="text" id="docTitle" placeholder="e.g. Invoice_Dec" class="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-white mb-6 focus:outline-none focus:border-blue-500">
-            
-            <!-- Format Selector -->
-            <label class="block text-xs text-gray-400 mb-2">Upload Format</label>
-            <div class="grid grid-cols-3 gap-2 mb-6">
-                <label class="cursor-pointer">
-                    <input type="radio" name="exportFormat" value="pdf" class="peer sr-only" checked>
-                    <div class="rounded-xl border border-gray-600 px-2 py-3 text-center text-[10px] sm:text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-600/20 peer-checked:text-blue-400 flex flex-col items-center gap-1">
-                        <i class="ph ph-file-pdf text-xl sm:text-2xl"></i> <span>PDF<br>(Combined)</span>
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="exportFormat" value="jpeg" class="peer sr-only">
-                    <div class="rounded-xl border border-gray-600 px-2 py-3 text-center text-[10px] sm:text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-600/20 peer-checked:text-blue-400 flex flex-col items-center gap-1">
-                        <i class="ph ph-image text-xl sm:text-2xl"></i> <span>JPEG<br>(Individual)</span>
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="exportFormat" value="png" class="peer sr-only">
-                    <div class="rounded-xl border border-gray-600 px-2 py-3 text-center text-[10px] sm:text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-600/20 peer-checked:text-blue-400 flex flex-col items-center gap-1">
-                        <i class="ph ph-image-square text-xl sm:text-2xl"></i> <span>PNG<br>(Individual)</span>
-                    </div>
-                </label>
-            </div>
-            
-            <div class="flex gap-3">
-                <button id="cancelSaveBtn" class="flex-1 py-3 rounded-xl bg-gray-700 text-white font-medium hover:bg-gray-600 transition-colors">Cancel</button>
-                <button id="confirmSaveBtn" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors flex items-center justify-center gap-2">
-                    <i class="ph ph-upload-simple"></i> Upload
+                <button id="triggerDriveBtn" class="flex flex-col items-center gap-1.5 p-3 text-blue-400 hover:text-blue-300 rounded-xl hover:bg-gray-700 transition-colors">
+                    <i class="ph ph-cloud-arrow-up text-2xl"></i>
+                    <span class="text-xs font-semibold">Drive Upload</span>
                 </button>
             </div>
         </div>
-    </div>
 
-    <!-- 5. VIEW DRIVE FILES MODAL -->
-    <div id="filesModal" class="hidden fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
-        <div class="bg-gray-800 rounded-2xl w-full max-w-sm p-6 border border-gray-700 slide-up max-h-[80vh] flex flex-col">
-            <h2 class="text-xl font-bold mb-4 text-white flex justify-between items-center">
-                My Drive Files
-                <button id="closeFilesBtn" class="text-gray-400 hover:text-white transition-colors"><i class="ph ph-x text-xl"></i></button>
-            </h2>
-            <div id="filesListContainer" class="flex-1 overflow-y-auto thumb-scroll flex flex-col gap-3 pr-1">
-                <div class="text-center text-gray-500 text-sm py-4">Loading files...</div>
+        <!-- ========================================== -->
+        <!-- 3. DRIVE UPLOAD MODAL                      -->
+        <!-- ========================================== -->
+        <div id="saveModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 hide backdrop-blur-sm">
+            <div class="bg-gray-800 rounded-2xl w-full max-w-sm p-6 border border-gray-700 shadow-2xl">
+                <h2 class="text-xl font-bold mb-4 text-white">Upload to Drive</h2>
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">Document Title</label>
+                    <input type="text" id="docTitleInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 focus:outline-none" placeholder="E.g., Tax Returns 2024">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm text-gray-400 mb-1">Save Format</label>
+                    <select id="formatSelect" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 focus:outline-none appearance-none">
+                        <option value="pdf">Combine into Single PDF</option>
+                        <option value="images">Separate Image Files</option>
+                    </select>
+                </div>
+                <div class="flex gap-3">
+                    <button id="cancelSaveBtn" class="flex-1 py-3 rounded-xl bg-gray-700 text-white font-medium hover:bg-gray-600 transition-colors">Cancel</button>
+                    <button id="confirmSaveBtn" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors flex items-center justify-center gap-2">
+                        <i class="ph ph-upload-simple text-lg"></i> Upload
+                    </button>
+                </div>
             </div>
         </div>
+
+        <!-- ========================================== -->
+        <!-- 4. MY FILES MODAL                          -->
+        <!-- ========================================== -->
+        <div id="filesModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 hide backdrop-blur-sm">
+            <div class="bg-gray-800 rounded-2xl w-full max-w-sm p-6 border border-gray-700 max-h-[80vh] flex flex-col shadow-2xl">
+                <h2 class="text-xl font-bold mb-4 text-white flex justify-between items-center">
+                    My Drive Files
+                    <button id="closeFilesBtn" class="text-gray-400 hover:text-white transition-colors"><i class="ph ph-x text-xl"></i></button>
+                </h2>
+                <div id="filesListContainer" class="flex-1 overflow-y-auto thumb-scroll flex flex-col pr-1">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- TOAST NOTIFICATION -->
+        <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-full text-white font-medium text-sm transition-all duration-300 opacity-0 pointer-events-none transform -translate-y-4 shadow-lg shadow-black/40"></div>
     </div>
 
     <script>
         // ==========================================
-        // ⚠️ CONFIGURATION REQUIRED ⚠️
+        // CONFIGURATION & STATE
         // ==========================================
+        // ⚠️ IMPORTANT: REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT DEPLOYMENT URL
         const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySF1GPjOnzpKZNLy0bu0pxE5Xl9wOyxInSdBXbzW-d2CS67fDeOfw8wSxciq4uJni7Zg/exec"; 
         
-        // ==========================================
-        // STATE & DOM ELEMENTS
-        // ==========================================
-        let currentUser = null;
+        const currentUser = "DemoUser"; // Using a placeholder user ID for demonstration
+        
+        let scannedPages = [];
+        let viewerIndex = 0;
+        let currentFacingMode = 'environment';
         let stream = null;
-        let videoTrack = null;
-        let scannedPages = []; // Array of base64 images
-        let flashMode = 'off'; // 'off', 'on', 'auto'
-        let isCameraOn = true; 
-
-        // Elements
-        const el = (id) => document.getElementById(id);
-        const loginScreen = el('loginScreen');
-        const mainApp = el('mainApp');
-        const cameraFeed = el('cameraFeed');
-        const captureCanvas = el('captureCanvas');
-        const thumbnailContainer = el('thumbnailContainer');
-        const emptyThumbMsg = el('emptyThumbMsg');
-        
-        // Camera & Buttons
-        const captureBtn = el('captureBtn');
-        const innerCaptureBtn = el('innerCaptureBtn');
-        const exportPdfBtn = el('exportPdfBtn');
-        const uploadDriveBtn = el('uploadDriveBtn');
-        const logoutBtn = el('logoutBtn');
-        
-        const toggleCameraBtn = el('toggleCameraBtn');
-        const cameraStateIcon = el('cameraStateIcon');
-        const cameraOffScreen = el('cameraOffScreen');
-        const turnOnCameraOverlayBtn = el('turnOnCameraOverlayBtn');
-        const scanOverlay = el('scanOverlay');
-
-        const flashBtn = el('flashBtn');
-        const flashIcon = el('flashIcon');
 
         // ==========================================
-        // UTILS: TOAST NOTIFICATIONS
+        // UTILITY FUNCTIONS
         // ==========================================
-        let toastTimeout;
+        const el = id => document.getElementById(id);
+        
         function showToast(msg, type = 'info') {
-            const toast = el('toast');
-            const icon = el('toastIcon');
-            el('toastMsg').innerText = msg;
-            
-            toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full text-sm font-semibold shadow-xl transition-all duration-300 flex items-center gap-2`;
-            
-            if (type === 'success') {
-                toast.classList.add('bg-green-500', 'text-white');
-                icon.className = 'ph ph-check-circle text-lg';
-            } else if (type === 'error') {
-                toast.classList.add('bg-red-500', 'text-white');
-                icon.className = 'ph ph-warning-circle text-lg';
+            const t = el('toast');
+            t.textContent = msg;
+            t.className = `fixed top-4 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-full text-white font-medium text-sm transition-all duration-300 transform shadow-lg shadow-black/40 ${type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-blue-600'}`;
+            t.classList.remove('opacity-0', '-translate-y-4');
+            setTimeout(() => t.classList.add('opacity-0', '-translate-y-4'), 3000);
+        }
+
+        function updateUI() {
+            if (scannedPages.length > 0) {
+                el('goToViewerBtn').classList.remove('hide');
+                el('lastThumb').src = scannedPages[scannedPages.length - 1];
+                el('lastThumb').classList.remove('hide');
+                el('pageBadge').classList.remove('hide');
+                el('pageBadge').textContent = scannedPages.length;
             } else {
-                toast.classList.add('bg-gray-800', 'text-white', 'border', 'border-gray-700');
-                icon.className = 'ph ph-info text-lg';
+                el('goToViewerBtn').classList.add('hide');
+                el('lastThumb').classList.add('hide');
+                el('pageBadge').classList.add('hide');
             }
-            
-            toast.style.opacity = '1';
-            toast.style.transform = 'translate(-50%, 0) scale(1)';
-            
-            clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translate(-50%, -20px) scale(0.95)';
-            }, 3000);
         }
 
         // ==========================================
-        // AUTHENTICATION LOGIC
+        // CAMERA LOGIC
         // ==========================================
-        let isRegisterMode = false;
-        const togglePasswordBtn = el('togglePasswordBtn');
-        const passwordInput = el('passwordInput');
-        const toggleAuthModeBtn = el('toggleAuthModeBtn');
-
-        togglePasswordBtn.addEventListener('click', () => {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            el('togglePasswordIcon').className = type === 'password' ? 'ph ph-eye text-xl' : 'ph ph-eye-slash text-xl';
-        });
-
-        toggleAuthModeBtn.addEventListener('click', () => {
-            isRegisterMode = !isRegisterMode;
-            if (isRegisterMode) {
-                el('authSubtitle').innerText = 'Create a new account';
-                el('authSubmitText').innerText = 'Register';
-                el('authSubmitIcon').className = 'ph ph-user-plus';
-                el('authModeText').innerText = 'Already have an account?';
-                toggleAuthModeBtn.innerText = 'Login here';
-            } else {
-                el('authSubtitle').innerText = 'Login to sync scans to your Drive';
-                el('authSubmitText').innerText = 'Sign In';
-                el('authSubmitIcon').className = 'ph ph-sign-in';
-                el('authModeText').innerText = "Don't have an account?";
-                toggleAuthModeBtn.innerText = 'Register here';
-            }
-        });
-
-        el('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = el('usernameInput').value.trim();
-            const password = passwordInput.value.trim();
-            if (!username || !password) return;
-
-            const btn = el('authSubmitBtn');
-            const originalText = btn.innerHTML;
-            
-            if (!GOOGLE_APPS_SCRIPT_URL || GOOGLE_APPS_SCRIPT_URL === "YOUR_WEB_APP_URL_HERE") {
-                showToast("Please add your Google Apps Script URL in the code first!", "error"); return;
-            }
-
-            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Processing...';
-            btn.disabled = true;
-
+        async function initCamera() {
+            if (stream) stream.getTracks().forEach(track => track.stop());
             try {
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: isRegisterMode ? 'register' : 'login', username, password })
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: currentFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } } 
                 });
-                const result = await response.json();
-
-                if (!result.success) { showToast(result.error || "Authentication failed", "error"); return; }
-
-                if (isRegisterMode) showToast("Registration successful! Logging you in...", "success");
-                else showToast(`Welcome back, ${username}!`, 'success');
-
-                currentUser = username;
-                sessionStorage.setItem('docuscan_user', currentUser);
-                el('displayUsername').innerText = currentUser;
-                el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
-                
-                loginScreen.classList.add('hidden');
-                mainApp.classList.remove('hidden');
-                mainApp.classList.add('flex');
-                
-                passwordInput.value = '';
-                isCameraOn = true;
-                startCamera();
-
+                el('videoElement').srcObject = stream;
             } catch (err) {
-                console.error(err); showToast("Network error. Check connection and URL.", "error");
-            } finally {
-                btn.innerHTML = originalText; btn.disabled = false;
+                console.error("Camera Error:", err);
+                showToast("Cannot access camera", "error");
             }
+        }
+
+        el('switchCameraBtn').addEventListener('click', () => {
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            initCamera();
         });
 
-        logoutBtn.addEventListener('click', () => {
-            stopCamera();
-            currentUser = null;
-            sessionStorage.removeItem('docuscan_user');
+        el('captureBtn').addEventListener('click', () => {
+            const video = el('videoElement');
+            const canvas = el('canvasElement');
+            // Flash animation
+            const flash = document.createElement('div');
+            flash.className = 'absolute inset-0 bg-white z-50 transition-opacity duration-300 pointer-events-none opacity-100';
+            el('cameraView').appendChild(flash);
+            setTimeout(() => flash.classList.add('opacity-0'), 50);
+            setTimeout(() => flash.remove(), 350);
+
+            // Capture high-res frame
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            scannedPages.push(canvas.toDataURL('image/jpeg', 0.85));
+            updateUI();
+        });
+
+        // Initialize Camera on load
+        initCamera();
+
+        // ==========================================
+        // VIEWER LOGIC
+        // ==========================================
+        function showViewer() {
+            el('cameraView').classList.add('hide');
+            el('viewerView').classList.remove('hide');
+            viewerIndex = scannedPages.length - 1; // Show newest scan first
+            updateView();
+        }
+
+        function updateView() {
+            if (scannedPages.length === 0) return;
+            el('viewerImage').src = scannedPages[viewerIndex];
+            el('pageIndicator').textContent = `${viewerIndex + 1} / ${scannedPages.length}`;
+            
+            el('prevPageBtn').style.opacity = viewerIndex === 0 ? '0.3' : '1';
+            el('nextPageBtn').style.opacity = viewerIndex === scannedPages.length - 1 ? '0.3' : '1';
+        }
+
+        el('goToViewerBtn').addEventListener('click', showViewer);
+        
+        el('backToCameraBtn').addEventListener('click', () => {
+            el('viewerView').classList.add('hide');
+            el('cameraView').classList.remove('hide');
+        });
+
+        el('prevPageBtn').addEventListener('click', () => {
+            if (viewerIndex > 0) { viewerIndex--; updateView(); }
+        });
+        
+        el('nextPageBtn').addEventListener('click', () => {
+            if (viewerIndex < scannedPages.length - 1) { viewerIndex++; updateView(); }
+        });
+
+        // ==========================================
+        // NEW FEATURE: CREATE NEW / CLEAR SCAN
+        // ==========================================
+        el('newScanBtn').addEventListener('click', () => {
+            if(scannedPages.length > 0) {
+                if(!confirm("Are you sure you want to discard these pages and start a new scan? Unsaved changes will be lost.")) {
+                    return;
+                }
+            }
+            // Reset state
             scannedPages = [];
-            updateGalleryUI();
-            
-            loginScreen.classList.remove('hidden');
-            mainApp.classList.add('hidden');
-            mainApp.classList.remove('flex');
-            
-            el('usernameInput').value = ''; el('passwordInput').value = '';
+            viewerIndex = 0;
+            updateUI(); // hide viewer thumbnail from camera
+            el('viewerView').classList.add('hide');
+            el('cameraView').classList.remove('hide');
+            el('docTitleInput').value = ''; // Clear title input
+            showToast("Ready for a new document", "success");
         });
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedUser = sessionStorage.getItem('docuscan_user');
-            if (savedUser) {
-                currentUser = savedUser;
-                el('displayUsername').innerText = currentUser;
-                el('userInitial').innerText = currentUser.charAt(0).toUpperCase();
-                loginScreen.classList.add('hidden');
-                mainApp.classList.remove('hidden');
-                mainApp.classList.add('flex');
-                isCameraOn = true;
-                startCamera();
+        // ==========================================
+        // PDF BUILDER (8.5 x 11 Logic)
+        // ==========================================
+        async function buildPDF() {
+            if (scannedPages.length === 0) throw new Error("No pages to export");
+            const { jsPDF } = window.jspdf;
+            
+            // Set strictly to Letter size (8.5 x 11 inches)
+            const doc = new jsPDF({ unit: 'in', format: 'letter' });
+            
+            for (let i = 0; i < scannedPages.length; i++) {
+                if (i > 0) doc.addPage();
+                
+                const imgProps = doc.getImageProperties(scannedPages[i]);
+                const pdfWidth = doc.internal.pageSize.getWidth();   // 8.5
+                const pdfHeight = doc.internal.pageSize.getHeight(); // 11
+                
+                // Aspect Ratio Calculator: Scale image down to perfectly fit standard paper
+                let imgWidth = pdfWidth;
+                let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                if (imgHeight > pdfHeight) {
+                    imgHeight = pdfHeight;
+                    imgWidth = (imgProps.width * pdfHeight) / imgProps.height;
+                }
+                
+                // Centering math
+                const x = (pdfWidth - imgWidth) / 2;
+                const y = (pdfHeight - imgHeight) / 2;
+                
+                doc.addImage(scannedPages[i], 'JPEG', x, y, imgWidth, imgHeight);
             }
-        });
+            return doc;
+        }
 
         // ==========================================
-        // CAMERA, TOGGLE, & FLASH LOGIC
+        // EXPORT LOCALLY
         // ==========================================
-        async function startCamera() {
+        el('exportPdfBtn').addEventListener('click', async () => {
+            if(scannedPages.length === 0) return;
+            showToast("Generating PDF...", "info");
             try {
-                const constraints = { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } };
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                cameraFeed.srcObject = stream;
-                
-                videoTrack = stream.getVideoTracks()[0];
-                const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
-                
-                // Show Flash button if device supports torch
-                if (capabilities.torch) { flashBtn.classList.remove('hidden'); updateFlashIcon(); }
-                else { flashBtn.classList.add('hidden'); }
-
-                // Update UI state
-                cameraFeed.classList.remove('opacity-0');
-                cameraOffScreen.classList.add('hidden');
-                scanOverlay.classList.remove('hidden');
-                cameraStateIcon.className = 'ph ph-video-camera text-xl text-white';
-                innerCaptureBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
-                innerCaptureBtn.classList.add('bg-white', 'hover:bg-gray-100');
-                
-            } catch (err) {
-                console.error("Camera error:", err);
-                showToast("Camera access denied or unavailable.", "error");
-                toggleCameraOff(); // Force off UI
-            }
-        }
-
-        function stopCamera() {
-            if (stream) {
-                if (videoTrack && flashMode === 'on') setTorch(false);
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-                videoTrack = null;
-            }
-        }
-
-        function toggleCameraOff() {
-            stopCamera();
-            isCameraOn = false;
-            cameraFeed.classList.add('opacity-0');
-            cameraOffScreen.classList.remove('hidden');
-            scanOverlay.classList.add('hidden');
-            cameraStateIcon.className = 'ph ph-video-camera-slash text-xl text-red-400';
-            flashBtn.classList.add('hidden'); // Hide flash when cam is off
-            
-            // Disable capture button visually
-            innerCaptureBtn.classList.add('bg-gray-300', 'cursor-not-allowed');
-            innerCaptureBtn.classList.remove('bg-white', 'hover:bg-gray-100');
-        }
-
-        toggleCameraBtn.addEventListener('click', () => {
-            if (isCameraOn) { toggleCameraOff(); } 
-            else { isCameraOn = true; startCamera(); }
+                const doc = await buildPDF();
+                doc.save(`DocuScan_${new Date().getTime()}.pdf`);
+                showToast("PDF Downloaded!", "success");
+            } catch(e) { showToast("PDF Error", "error"); console.error(e); }
         });
 
-        turnOnCameraOverlayBtn.addEventListener('click', () => {
-            isCameraOn = true; startCamera();
-        });
-
-        async function setTorch(isOn) {
-            if (!videoTrack) return;
-            try { 
-                await videoTrack.applyConstraints({ advanced: [{ torch: isOn }] }); 
-            } catch (e) { 
-                // Fallback for some android devices
-                try { await videoTrack.applyConstraints({ torch: isOn }); } 
-                catch(err) { console.error("Torch error fallback failed", err); }
-            }
-        }
-
-        flashBtn.addEventListener('click', () => {
-            if (flashMode === 'off') { flashMode = 'on'; setTorch(true); }
-            else if (flashMode === 'on') { flashMode = 'auto'; setTorch(false); }
-            else { flashMode = 'off'; setTorch(false); }
-            updateFlashIcon();
-        });
-
-        function updateFlashIcon() {
-            if (flashMode === 'off') { flashIcon.className = 'ph ph-lightning-slash text-xl text-gray-400'; }
-            else if (flashMode === 'on') { flashIcon.className = 'ph ph-lightning text-xl text-yellow-400'; }
-            else if (flashMode === 'auto') { flashIcon.className = 'ph ph-lightning text-xl text-white'; flashIcon.innerHTML = '<span class="absolute text-[8px] font-bold bottom-0 right-0">A</span>'; }
-        }
-
-        // ==========================================
-        // SCAN CAPTURING
-        // ==========================================
-        captureBtn.addEventListener('click', async () => {
-            if (!isCameraOn || !stream) {
-                showToast("Please turn on the camera first", "error"); return;
-            }
-            
-            captureBtn.classList.add('scale-90', 'opacity-80');
-            setTimeout(() => captureBtn.classList.remove('scale-90', 'opacity-80'), 150);
-
-            if (flashMode === 'auto' && videoTrack) {
-                await setTorch(true);
-                await new Promise(r => setTimeout(r, 400));
-            }
-
-            const flashOverlay = el('flashOverlay');
-            flashOverlay.style.opacity = '1';
-
-            const ctx = captureCanvas.getContext('2d');
-            captureCanvas.width = cameraFeed.videoWidth;
-            captureCanvas.height = cameraFeed.videoHeight;
-            ctx.drawImage(cameraFeed, 0, 0, captureCanvas.width, captureCanvas.height);
-            
-            setTimeout(() => { flashOverlay.style.opacity = '0'; }, 100);
-
-            if (flashMode === 'auto') setTorch(false);
-
-            const base64Img = captureCanvas.toDataURL('image/jpeg', 0.9);
-            scannedPages.push(base64Img);
-            
-            showToast(`Page ${scannedPages.length} captured!`);
-            updateGalleryUI();
+        el('exportJpgBtn').addEventListener('click', () => {
+            if(scannedPages.length === 0) return;
+            const link = document.createElement('a');
+            link.download = `Page_${viewerIndex + 1}.jpg`;
+            link.href = scannedPages[viewerIndex];
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Image Downloaded!", "success");
         });
 
         // ==========================================
-        // GALLERY & THUMBNAILS
+        // DRIVE UPLOAD LOGIC
         // ==========================================
-        function updateGalleryUI() {
-            if (scannedPages.length === 0) {
-                emptyThumbMsg.classList.remove('hidden');
-                thumbnailContainer.innerHTML = '';
-                thumbnailContainer.appendChild(emptyThumbMsg);
-                exportPdfBtn.disabled = true; uploadDriveBtn.disabled = true;
-                exportPdfBtn.classList.replace('text-white', 'text-gray-400');
-                uploadDriveBtn.classList.replace('text-blue-400', 'text-gray-400');
+        el('triggerDriveBtn').addEventListener('click', () => {
+            if(scannedPages.length === 0) return;
+            el('saveModal').classList.remove('hide');
+        });
+        
+        el('cancelSaveBtn').addEventListener('click', () => el('saveModal').classList.add('hide'));
+
+        el('confirmSaveBtn').addEventListener('click', async () => {
+            if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) {
+                alert("Please add your Apps Script URL to the code before testing Drive features.");
                 return;
             }
 
-            emptyThumbMsg.classList.add('hidden');
-            exportPdfBtn.disabled = false; uploadDriveBtn.disabled = false;
-            exportPdfBtn.classList.replace('text-gray-400', 'text-white');
-            uploadDriveBtn.classList.replace('text-gray-400', 'text-blue-400');
-
-            thumbnailContainer.innerHTML = '';
-            scannedPages.forEach((pageData, index) => {
-                const thumbDiv = document.createElement('div');
-                thumbDiv.className = "relative flex-shrink-0 w-16 h-20 rounded-md overflow-hidden border-2 border-gray-700 bg-gray-800 shadow-sm cursor-pointer hover:border-blue-500 transition-colors";
-                thumbDiv.onclick = () => openEditScreen(index);
-                
-                const img = document.createElement('img');
-                img.src = pageData;
-                img.className = "w-full h-full object-cover";
-                
-                const badge = document.createElement('div');
-                badge.className = "absolute bottom-0 right-0 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-tl-md";
-                badge.innerText = index + 1;
-
-                const delBtn = document.createElement('button');
-                delBtn.className = "absolute top-0 right-0 bg-red-500/90 text-white w-5 h-5 flex items-center justify-center rounded-bl-md backdrop-blur-sm";
-                delBtn.innerHTML = '<i class="ph ph-x text-xs"></i>';
-                delBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    scannedPages.splice(index, 1);
-                    updateGalleryUI();
-                };
-
-                thumbDiv.appendChild(img);
-                thumbDiv.appendChild(badge);
-                thumbDiv.appendChild(delBtn);
-                thumbnailContainer.appendChild(thumbDiv);
-            });
-            thumbnailContainer.scrollLeft = thumbnailContainer.scrollWidth;
-        }
-
-        // ==========================================
-        // EDIT / CROP / FILTER SCREEN
-        // ==========================================
-        let cropper = null;
-        let currentEditIndex = -1;
-        let currentFilter = 'original';
-        const editScreen = el('editScreen');
-        const editImage = el('editImage');
-
-        function openEditScreen(index) {
-            currentEditIndex = index;
-            currentFilter = 'original';
-            editImage.src = scannedPages[index];
-            editImage.className = ""; 
-            updateFilterButtons();
-
-            editScreen.classList.remove('hidden');
+            const title = el('docTitleInput').value.trim() || 'Untitled Scan';
+            const format = el('formatSelect').value;
             
-            if (cropper) cropper.destroy();
-            cropper = new Cropper(editImage, {
-                viewMode: 1, autoCropArea: 0.95, background: false, modal: true,
-                guides: true, highlight: true, cropBoxMovable: true, cropBoxResizable: true,
-            });
-        }
-
-        el('cancelEditBtn').addEventListener('click', () => {
-            editScreen.classList.add('hidden');
-            if (cropper) cropper.destroy();
-        });
-
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const filterType = e.currentTarget.getAttribute('data-filter');
-                currentFilter = filterType;
-                
-                const cropperImg = document.querySelector('.cropper-view-box img');
-                if(cropperImg) {
-                    cropperImg.className = filterType === 'grayscale' ? 'filter-grayscale' : 
-                                           filterType === 'bw' ? 'filter-bw' : '';
-                }
-                updateFilterButtons();
-            });
-        });
-
-        function updateFilterButtons() {
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                const borderDiv = btn.querySelector('div');
-                if (btn.getAttribute('data-filter') === currentFilter) {
-                    btn.classList.add('text-blue-400'); btn.classList.remove('text-gray-400');
-                    borderDiv.classList.add('border-current'); borderDiv.classList.remove('border-transparent');
-                } else {
-                    btn.classList.remove('text-blue-400'); btn.classList.add('text-gray-400');
-                    borderDiv.classList.remove('border-current'); borderDiv.classList.add('border-transparent');
-                }
-            });
-        }
-
-        el('saveEditBtn').addEventListener('click', () => {
-            showToast("Processing image...");
-            const canvas = cropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
+            el('saveModal').classList.add('hide');
+            showToast("Preparing file...", "info");
             
-            if (currentFilter !== 'original') {
-                const ctx = canvas.getContext('2d');
-                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imgData.data;
-                
-                for (let i = 0; i < data.length; i += 4) {
-                    let r = data[i], g = data[i+1], b = data[i+2];
-                    let gray = 0.299 * r + 0.587 * g + 0.114 * b; 
-                    if (currentFilter === 'grayscale') {
-                        data[i] = data[i+1] = data[i+2] = gray;
-                    } else if (currentFilter === 'bw') {
-                        let val = gray > 110 ? 255 : 0; 
-                        data[i] = data[i+1] = data[i+2] = val;
-                    }
-                }
-                ctx.putImageData(imgData, 0, 0);
-            }
-
-            scannedPages[currentEditIndex] = canvas.toDataURL('image/jpeg', 0.85);
-            editScreen.classList.add('hidden');
-            if (cropper) cropper.destroy();
-            updateGalleryUI();
-        });
-
-        // ==========================================
-        // EXPORT TO PDF (LOCAL) & GOOGLE DRIVE API
-        // ==========================================
-        exportPdfBtn.addEventListener('click', async () => {
-            if (scannedPages.length === 0) return;
-            showToast("Generating PDF...");
+            let payload = { action: 'save', username: currentUser, title: title, format: format };
+            
             try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                for (let i = 0; i < scannedPages.length; i++) {
-                    if (i > 0) doc.addPage();
-                    const imgProps = doc.getImageProperties(scannedPages[i]);
-                    const pdfWidth = doc.internal.pageSize.getWidth();
-                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                    doc.addImage(scannedPages[i], 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                if (format === 'pdf') {
+                    // Uses our strict 8.5 x 11 formatting logic
+                    const doc = await buildPDF();
+                    payload.file = doc.output('datauristring');
+                } else {
+                    payload.pages = scannedPages;
                 }
                 
-                doc.save(`DocuScan_${currentUser}_${new Date().getTime()}.pdf`);
-                showToast("PDF Downloaded successfully!", "success");
-            } catch (err) { console.error(err); showToast("Failed to generate PDF", "error"); }
+                showToast("Uploading to Drive...", "info");
+                
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast("Uploaded successfully!", "success");
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Upload failed.", "error");
+            }
         });
-
-        uploadDriveBtn.addEventListener('click', () => {
-            if (scannedPages.length === 0) return;
-            el('docTitle').value = `Scan_${new Date().toLocaleDateString().replace(/\//g, '-')}`;
-            el('saveModal').classList.remove('hidden');
-        });
-
-        el('cancelSaveBtn').addEventListener('click', () => el('saveModal').classList.add('hidden'));
 
         // ==========================================
-        // VIEW DRIVE FILES LOGIC
+        // MY FILES VIEWER LOGIC
         // ==========================================
         el('viewDriveBtn').addEventListener('click', async () => {
-            const modal = el('filesModal');
+            if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) {
+                alert("Please add your Apps Script URL to the code before checking Drive files.");
+                return;
+            }
+
             const container = el('filesListContainer');
-            modal.classList.remove('hidden');
-            container.innerHTML = '<div class="text-center text-gray-500 text-sm py-8"><i class="ph ph-spinner animate-spin text-2xl mb-2"></i><br>Fetching files from Drive...</div>';
+            el('filesModal').classList.remove('hide');
+            
+            container.innerHTML = '<div class="text-center text-gray-400 py-12"><i class="ph ph-spinner animate-spin text-3xl mb-3 text-blue-500"></i><br>Fetching your files...</div>';
 
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -769,98 +439,29 @@
                 
                 if (result.success) {
                     if (result.files.length === 0) {
-                        container.innerHTML = '<div class="text-center text-gray-500 text-sm py-8">No files found in your Drive yet.</div>';
+                        container.innerHTML = '<div class="text-center text-gray-400 py-10">No files found in your Drive yet.</div>';
                     } else {
                         container.innerHTML = result.files.map(f => `
-                            <a href="${f.url}" target="_blank" class="flex items-center gap-3 p-3 bg-gray-900 rounded-xl hover:bg-gray-700 transition-colors border border-gray-700">
-                                <div class="${f.type === 'folder' ? 'text-yellow-400' : 'text-red-400'} text-2xl">
+                            <a href="${f.url}" target="_blank" class="flex items-center gap-4 p-3 bg-gray-900 rounded-xl hover:bg-gray-700 transition-colors border border-gray-700 mb-2 no-underline text-white">
+                                <div class="${f.type === 'folder' ? 'text-yellow-400' : 'text-red-400'} text-3xl">
                                     <i class="ph ${f.type === 'folder' ? 'ph-folder' : 'ph-file-pdf'}"></i>
                                 </div>
                                 <div class="flex-1 overflow-hidden">
-                                    <div class="text-sm text-gray-200 font-medium truncate">${f.name}</div>
-                                    <div class="text-[10px] text-gray-500">${new Date(f.date).toLocaleDateString()}</div>
+                                    <div class="text-sm font-semibold truncate">${f.name}</div>
+                                    <div class="text-xs text-gray-400 mt-1">${new Date(f.date).toLocaleDateString()}</div>
                                 </div>
-                                <i class="ph ph-arrow-square-out text-gray-500"></i>
+                                <i class="ph ph-arrow-square-out text-gray-400 text-lg"></i>
                             </a>
                         `).join('');
                     }
                 } else { throw new Error(result.error); }
             } catch (err) {
                 console.error(err);
-                container.innerHTML = '<div class="text-center text-red-400 text-sm py-8">Failed to load files. Check your connection.</div>';
+                container.innerHTML = '<div class="text-center text-red-400 py-10">Failed to load files.<br>Check your connection and Script URL.</div>';
             }
         });
 
-        el('closeFilesBtn').addEventListener('click', () => el('filesModal').classList.add('hidden'));
-
-        // ==========================================
-        // DRIVE UPLOAD FORMAT LOGIC
-        // ==========================================
-        el('confirmSaveBtn').addEventListener('click', async () => {
-            const title = el('docTitle').value.trim() || "Untitled_Scan";
-            const format = document.querySelector('input[name="exportFormat"]:checked').value;
-            const btn = el('confirmSaveBtn');
-            const originalText = btn.innerHTML;
-            
-            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Uploading...';
-            btn.disabled = true;
-
-            let payload = {
-                action: 'upload',
-                title: title,
-                username: currentUser,
-                format: format
-            };
-
-            try {
-                if (format === 'pdf') {
-                    // Generate PDF directly as Base64 string to send to Drive
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-                    for (let i = 0; i < scannedPages.length; i++) {
-                        if (i > 0) doc.addPage();
-                        const imgProps = doc.getImageProperties(scannedPages[i]);
-                        const pdfWidth = doc.internal.pageSize.getWidth();
-                        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                        doc.addImage(scannedPages[i], 'JPEG', 0, 0, pdfWidth, pdfHeight);
-                    }
-                    payload.file = doc.output('datauristring'); // Attach the combined PDF base64
-                } else if (format === 'png') {
-                    // Convert JPEGs to PNG before sending
-                    payload.pages = await Promise.all(scannedPages.map(src => {
-                        return new Promise(resolve => {
-                            const img = new Image();
-                            img.onload = () => {
-                                const canvas = document.createElement('canvas');
-                                canvas.width = img.width; canvas.height = img.height;
-                                canvas.getContext('2d').drawImage(img, 0, 0);
-                                resolve(canvas.toDataURL('image/png'));
-                            };
-                            img.src = src;
-                        });
-                    }));
-                } else {
-                    // Send default JPEGs
-                    payload.pages = scannedPages;
-                }
-
-                // Send to backend App Script
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    showToast("Saved to Google Drive!", "success");
-                    el('saveModal').classList.add('hidden');
-                } else { throw new Error(result.error); }
-            } catch (err) {
-                console.error(err); showToast("Upload failed.", "error");
-            } finally {
-                btn.innerHTML = originalText; btn.disabled = false;
-            }
-        });
+        el('closeFilesBtn').addEventListener('click', () => el('filesModal').classList.add('hide'));
 
     </script>
 </body>
