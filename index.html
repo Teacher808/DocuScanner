@@ -50,23 +50,43 @@
     <div id="app" class="relative w-full h-full">
         
         <!-- ========================================== -->
-        <!-- 0. LOGIN OVERLAY                           -->
+        <!-- 0. LOGIN / REGISTER OVERLAY                -->
         <!-- ========================================== -->
         <div id="loginOverlay" class="absolute inset-0 z-[100] bg-gray-900 flex flex-col items-center justify-center p-6 hide">
             <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
                 <div class="text-center mb-6">
-                    <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="ph ph-lock-key text-3xl text-white"></i>
+                    <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors" id="authIconContainer">
+                        <i id="authIcon" class="ph ph-lock-key text-3xl text-white"></i>
                     </div>
-                    <h1 class="text-2xl font-bold text-white">Secure Login</h1>
-                    <p class="text-sm text-gray-400 mt-2">Enter a username and password to access your secure Drive folder.</p>
+                    <h1 id="authTitle" class="text-2xl font-bold text-white">Secure Login</h1>
+                    <p id="authSubtitle" class="text-sm text-gray-400 mt-2">Enter your credentials to access your secure Drive.</p>
                 </div>
+                
                 <input type="text" id="usernameInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 focus:outline-none mb-3 text-center" placeholder="Username">
-                <input type="password" id="passwordInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 focus:outline-none mb-4 text-center" placeholder="Password">
-                <button id="loginBtn" class="w-full py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors flex justify-center items-center gap-2">
+                
+                <div class="relative mb-3">
+                    <input type="password" id="passwordInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 pr-10 text-white focus:border-blue-500 focus:outline-none text-center" placeholder="Password">
+                    <button type="button" id="togglePasswordBtn" class="absolute right-3 top-3.5 text-gray-400 hover:text-white transition-colors" title="Show/Hide Password">
+                        <i class="ph ph-eye text-xl"></i>
+                    </button>
+                </div>
+
+                <div id="confirmPasswordContainer" class="relative mb-4 hide">
+                    <input type="password" id="confirmPasswordInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 pr-10 text-white focus:border-blue-500 focus:outline-none text-center" placeholder="Confirm Password">
+                    <button type="button" id="toggleConfirmPasswordBtn" class="absolute right-3 top-3.5 text-gray-400 hover:text-white transition-colors" title="Show/Hide Password">
+                        <i class="ph ph-eye text-xl"></i>
+                    </button>
+                </div>
+
+                <button id="loginBtn" class="w-full py-3 mt-1 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors flex justify-center items-center gap-2">
                     <span id="loginBtnText">Access My Scanner</span>
                     <i id="loginSpinner" class="ph ph-spinner animate-spin text-xl hide"></i>
                 </button>
+                
+                <div class="text-center mt-5">
+                    <button id="toggleAuthModeBtn" class="text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium">Need an account? Register</button>
+                </div>
+
                 <div class="text-center text-xs text-gray-500 mt-6 tracking-wide font-medium">Developed by PVNJ</div>
             </div>
         </div>
@@ -247,6 +267,7 @@
         let viewerIndex = 0;
         let currentFacingMode = 'environment';
         let stream = null;
+        let isRegisterMode = false;
         window.cvReady = window.cvReady || false;
 
         const el = id => document.getElementById(id);
@@ -274,8 +295,56 @@
         }
 
         // ==========================================
-        // LOGIN/LOGOUT LOGIC
+        // LOGIN / REGISTRATION LOGIC
         // ==========================================
+        
+        // Show/Hide Password Toggle Function
+        function setupPasswordToggle(inputId, btnId) {
+            const input = el(inputId);
+            const btn = el(btnId);
+            const icon = btn.querySelector('i');
+            
+            btn.addEventListener('click', () => {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('ph-eye');
+                    icon.classList.add('ph-eye-slash');
+                    btn.classList.add('text-blue-400');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('ph-eye-slash');
+                    icon.classList.add('ph-eye');
+                    btn.classList.remove('text-blue-400');
+                }
+            });
+        }
+        setupPasswordToggle('passwordInput', 'togglePasswordBtn');
+        setupPasswordToggle('confirmPasswordInput', 'toggleConfirmPasswordBtn');
+
+        // Switch between Login and Register views
+        el('toggleAuthModeBtn').addEventListener('click', () => {
+            isRegisterMode = !isRegisterMode;
+            
+            if (isRegisterMode) {
+                el('authTitle').textContent = "Create Account";
+                el('authSubtitle').textContent = "Register a new secure username and password.";
+                el('confirmPasswordContainer').classList.remove('hide');
+                el('loginBtnText').textContent = "Register & Access";
+                el('toggleAuthModeBtn').textContent = "Already have an account? Login";
+                el('authIconContainer').classList.replace('bg-blue-600', 'bg-green-600');
+                el('authIcon').className = "ph ph-user-plus text-3xl text-white";
+            } else {
+                el('authTitle').textContent = "Secure Login";
+                el('authSubtitle').textContent = "Enter your credentials to access your secure Drive.";
+                el('confirmPasswordContainer').classList.add('hide');
+                el('loginBtnText').textContent = "Access My Scanner";
+                el('toggleAuthModeBtn').textContent = "Need an account? Register";
+                el('authIconContainer').classList.replace('bg-green-600', 'bg-blue-600');
+                el('authIcon').className = "ph ph-lock-key text-3xl text-white";
+                el('confirmPasswordInput').value = ""; // Clear on switch
+            }
+        });
+
         function checkLogin() {
             if (currentUser && currentPassword) {
                 el('loginOverlay').classList.add('hide');
@@ -291,29 +360,60 @@
         el('loginBtn').addEventListener('click', async () => {
             const userVal = el('usernameInput').value.trim();
             const passVal = el('passwordInput').value.trim();
-            if (userVal.length < 3 || passVal.length < 4) return showToast("Username min 3 chars, Password min 4 chars", "error");
-            if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) return alert("Please add your Apps Script URL to the code before logging in.");
+            const confirmPassVal = el('confirmPasswordInput').value.trim();
 
-            el('loginBtnText').textContent = "Authenticating...";
+            if (userVal.length < 3) return showToast("Username must be at least 3 characters", "error");
+            if (passVal.length < 4) return showToast("Password must be at least 4 characters", "error");
+            
+            if (isRegisterMode && passVal !== confirmPassVal) {
+                return showToast("Passwords do not match!", "error");
+            }
+
+            if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) {
+                // If user is just testing the UI without a script:
+                return alert("Please add your Apps Script URL to the code to securely connect to Drive.");
+            }
+
+            el('loginBtnText').textContent = isRegisterMode ? "Registering..." : "Authenticating...";
             el('loginSpinner').classList.remove('hide');
             el('loginBtn').disabled = true;
 
             try {
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'auth', username: userVal, password: passVal }) });
+                // We send either 'register' or 'auth' to your backend Apps Script
+                const actionType = isRegisterMode ? 'register' : 'auth';
+                
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ action: actionType, username: userVal, password: passVal }) 
+                });
                 const result = await response.json();
+                
                 if (result.success) {
                     currentUser = userVal; currentPassword = passVal;
-                    localStorage.setItem('docuscan_user', currentUser); localStorage.setItem('docuscan_pass', currentPassword);
-                    showToast(result.message, "success"); checkLogin();
-                } else showToast(result.error || "Authentication failed", "error");
-            } catch (err) { showToast("Network error. Try again.", "error"); } 
-            finally { el('loginBtnText').textContent = "Access My Scanner"; el('loginSpinner').classList.add('hide'); el('loginBtn').disabled = false; }
+                    localStorage.setItem('docuscan_user', currentUser); 
+                    localStorage.setItem('docuscan_pass', currentPassword);
+                    showToast(isRegisterMode ? "Account Created!" : result.message, "success"); 
+                    checkLogin();
+                } else {
+                    showToast(result.error || "Authentication failed", "error");
+                }
+            } catch (err) { 
+                showToast("Network error. Try again.", "error"); 
+            } finally { 
+                el('loginBtnText').textContent = isRegisterMode ? "Register & Access" : "Access My Scanner"; 
+                el('loginSpinner').classList.add('hide'); 
+                el('loginBtn').disabled = false; 
+            }
         });
 
         el('logoutBtn').addEventListener('click', () => {
             currentUser = ""; currentPassword = "";
             localStorage.removeItem('docuscan_user'); localStorage.removeItem('docuscan_pass');
-            el('usernameInput').value = ''; el('passwordInput').value = '';
+            el('usernameInput').value = ''; el('passwordInput').value = ''; el('confirmPasswordInput').value = '';
+            
+            // Reset to Login mode on logout
+            if(isRegisterMode) el('toggleAuthModeBtn').click();
+            
             scannedPages = []; viewerIndex = 0; updateUI();
             el('viewerView').classList.add('hide'); el('cropView').classList.add('hide'); el('cameraView').classList.remove('hide');
             if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; }
@@ -349,7 +449,7 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            initCrop(canvas); // Go to Crop UI instead of direct save
+            initCrop(canvas);
         });
 
         // ==========================================
@@ -359,7 +459,7 @@
         let cropImgBaseW = 0; let cropImgBaseH = 0;
         let cropScale = 1; let cropOffsetX = 0; let cropOffsetY = 0;
         let activePtIndex = -1;
-        let cropPts = []; // array of {x, y} in IMAGE coordinates [TL, TR, BR, BL]
+        let cropPts = []; 
 
         function initCrop(canvas) {
             el('cameraView').classList.add('hide');
@@ -370,7 +470,6 @@
             cropImgBaseH = canvas.height;
             el('cropImage').src = canvas.toDataURL('image/jpeg', 0.8);
 
-            // Attempt AI Auto-detect
             let detectedPts = null;
             if (window.cvReady) {
                 showToast("Scanning for document edges...", "info");
@@ -388,7 +487,6 @@
                 cropPts = detectedPts;
                 showToast("Document detected!", "success");
             } else {
-                // Default 10% margins fallback
                 let mw = cropImgBaseW * 0.1; let mh = cropImgBaseH * 0.1;
                 cropPts = [ {x: mw, y: mh}, {x: cropImgBaseW - mw, y: mh}, {x: cropImgBaseW - mw, y: cropImgBaseH - mh}, {x: mw, y: cropImgBaseH - mh} ];
                 if(window.cvReady) showToast("Could not auto-detect edges. Adjust manually.", "info");
@@ -425,7 +523,6 @@
             }
         }
 
-        // --- Touch/Drag handlers for corners ---
         const getEvtCoords = (e) => (e.touches && e.touches.length > 0) ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
 
         for(let i=0; i<4; i++) {
@@ -455,7 +552,6 @@
         window.addEventListener('mouseup', endDrag);
         window.addEventListener('touchend', endDrag);
 
-        // --- Crop Actions ---
         el('cancelCropBtn').addEventListener('click', () => {
             el('cropView').classList.add('hide'); el('cameraView').classList.remove('hide');
         });
@@ -479,13 +575,11 @@
                 let src = cv.imread(srcCanvas);
                 let dst = new cv.Mat();
                 
-                // Downscale for faster processing
                 let maxSize = 500;
                 let scale = Math.min(maxSize / src.cols, maxSize / src.rows);
                 let dsize = new cv.Size(src.cols * scale, src.rows * scale);
                 cv.resize(src, dst, dsize, 0, 0, cv.INTER_AREA);
 
-                // Grayscale -> Blur -> Canny Edges
                 cv.cvtColor(dst, dst, cv.COLOR_RGBA2GRAY, 0);
                 cv.GaussianBlur(dst, dst, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
                 cv.Canny(dst, dst, 75, 200);
@@ -527,7 +621,6 @@
             } catch (err) { console.error("CV Error:", err); return null; }
         }
 
-        // Ensures points are [TL, TR, BR, BL] for correct perspective warp
         function orderPoints(pts) {
             let rect = new Array(4);
             let s = pts.map(p => p.x + p.y);
@@ -546,12 +639,11 @@
         }
 
         function flattenDocument(srcCanvas, pts) {
-            if (!window.cvReady) return srcCanvas.toDataURL('image/jpeg', 0.85); // Fallback if CV fails
+            if (!window.cvReady) return srcCanvas.toDataURL('image/jpeg', 0.85); 
             try {
                 let src = cv.imread(srcCanvas);
                 let tl = pts[0], tr = pts[1], br = pts[2], bl = pts[3];
                 
-                // Calculate max width & height to maintain aspect ratio
                 let widthA = Math.hypot(br.x - bl.x, br.y - bl.y);
                 let widthB = Math.hypot(tr.x - tl.x, tr.y - tl.y);
                 let maxWidth = Math.max(widthA, widthB);
