@@ -14,9 +14,8 @@
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <!-- OpenCV.js for Computer Vision (Edge Detection & Perspective Warp) -->
+    <!-- OpenCV.js for Computer Vision -->
     <script>
-        // Setup the Module before the script loads to catch the initialization event
         var Module = {
             onRuntimeInitialized: function() {
                 window.cvReady = true;
@@ -53,8 +52,14 @@
         <!-- 0. LOGIN / REGISTER OVERLAY                -->
         <!-- ========================================== -->
         <div id="loginOverlay" class="absolute inset-0 z-[100] bg-gray-900 flex flex-col items-center justify-center p-6 hide">
-            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
-                <div class="text-center mb-6">
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700 relative">
+                
+                <!-- Offline Indicator for Auth Screen -->
+                <div id="offlineAuthIndicator" class="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-600 text-white text-[10px] uppercase font-bold px-3 py-1 rounded-full shadow-lg hide flex items-center gap-1 tracking-wider">
+                    <i class="ph ph-wifi-slash"></i> Offline Mode
+                </div>
+
+                <div class="text-center mb-6 mt-2">
                     <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors" id="authIconContainer">
                         <i id="authIcon" class="ph ph-lock-key text-3xl text-white"></i>
                     </div>
@@ -62,17 +67,17 @@
                     <p id="authSubtitle" class="text-sm text-gray-400 mt-2">Enter your credentials to access your secure Drive.</p>
                 </div>
                 
-                <input type="text" id="usernameInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 focus:outline-none mb-3 text-center" placeholder="Username">
+                <input type="text" id="usernameInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 focus:outline-none mb-3 text-center" placeholder="Username" autocomplete="username">
                 
                 <div class="relative mb-3">
-                    <input type="password" id="passwordInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 pr-10 text-white focus:border-blue-500 focus:outline-none text-center" placeholder="Password">
+                    <input type="password" id="passwordInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 pr-10 text-white focus:border-blue-500 focus:outline-none text-center" placeholder="Password" autocomplete="current-password">
                     <button type="button" id="togglePasswordBtn" class="absolute right-3 top-3.5 text-gray-400 hover:text-white transition-colors" title="Show/Hide Password">
                         <i class="ph ph-eye text-xl"></i>
                     </button>
                 </div>
 
                 <div id="confirmPasswordContainer" class="relative mb-4 hide">
-                    <input type="password" id="confirmPasswordInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 pr-10 text-white focus:border-blue-500 focus:outline-none text-center" placeholder="Confirm Password">
+                    <input type="password" id="confirmPasswordInput" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 pr-10 text-white focus:border-blue-500 focus:outline-none text-center" placeholder="Confirm Password" autocomplete="new-password">
                     <button type="button" id="toggleConfirmPasswordBtn" class="absolute right-3 top-3.5 text-gray-400 hover:text-white transition-colors" title="Show/Hide Password">
                         <i class="ph ph-eye text-xl"></i>
                     </button>
@@ -95,11 +100,13 @@
         <!-- 1. CAMERA VIEW                             -->
         <!-- ========================================== -->
         <div id="cameraView" class="absolute inset-0 z-10 flex flex-col bg-black">
-            <!-- Header -->
             <header class="absolute top-0 left-0 right-0 p-4 z-20 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-center pointer-events-none">
                 <div class="flex items-center gap-2 pointer-events-auto">
                     <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">U</div>
-                    <span class="font-medium text-sm drop-shadow-md">User</span>
+                    <span class="font-medium text-sm drop-shadow-md flex items-center gap-2">
+                        <span id="headerUsername">User</span>
+                        <i id="headerOfflineIcon" class="ph ph-wifi-slash text-yellow-400 hide" title="Offline Mode - Drive Sync Disabled"></i>
+                    </span>
                 </div>
                 <div class="flex gap-2 items-center pointer-events-auto">
                     <button id="logoutBtn" class="text-red-400 hover:text-red-300 p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow" title="Logout">
@@ -108,16 +115,18 @@
                     <button id="viewDriveBtn" class="text-blue-400 hover:text-blue-300 p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow" title="My Files">
                         <i class="ph ph-folder-open text-xl"></i>
                     </button>
-                    <button id="switchCameraBtn" class="text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow">
+                    <!-- Flashlight Toggle -->
+                    <button id="toggleFlashBtn" class="text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow hide" title="Toggle Flashlight">
+                        <i id="flashIcon" class="ph ph-flashlight text-xl"></i>
+                    </button>
+                    <button id="switchCameraBtn" class="text-gray-300 hover:text-white p-2 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-md transition-colors shadow" title="Switch Camera">
                         <i class="ph ph-camera-rotate text-xl"></i>
                     </button>
                 </div>
             </header>
 
-            <!-- Video Feed -->
             <video id="videoElement" class="w-full h-full object-cover" autoplay playsinline></video>
             
-            <!-- Bottom Controls -->
             <div class="absolute bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-black to-transparent flex justify-center items-center z-20">
                 <div class="flex items-center gap-8">
                     <div class="w-14 h-14"></div> <!-- Spacer -->
@@ -133,7 +142,6 @@
                 </div>
             </div>
             
-            <!-- Hidden Canvas for capturing -->
             <canvas id="canvasElement" class="hide"></canvas>
         </div>
 
@@ -141,7 +149,6 @@
         <!-- 2. CROP & ADJUST VIEW                      -->
         <!-- ========================================== -->
         <div id="cropView" class="absolute inset-0 z-40 bg-gray-900 flex flex-col hide">
-            <!-- Header -->
             <header class="p-4 flex justify-between items-center bg-gray-800 border-b border-gray-700 shadow-sm z-10">
                 <button id="cancelCropBtn" class="p-2 text-red-400 hover:bg-gray-700 rounded-lg flex items-center gap-1 transition-colors">
                     <i class="ph ph-x text-xl"></i> <span class="text-sm font-medium">Retake</span>
@@ -152,12 +159,9 @@
                 </button>
             </header>
 
-            <!-- Crop Interactive Area -->
             <div id="cropContainer" class="relative w-full flex-1 bg-black overflow-hidden touch-none">
-                <!-- Image goes here -->
                 <img id="cropImage" class="absolute pointer-events-none origin-top-left object-cover">
                 
-                <!-- Polygon Overlay -->
                 <svg id="cropSvg" class="absolute inset-0 pointer-events-none w-full h-full z-10">
                     <polygon id="cropPolygon" points="" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2"/>
                 </svg>
@@ -169,7 +173,6 @@
                 <div id="pt3" class="crop-pt absolute w-12 h-12 -ml-6 -mt-6 bg-blue-500/40 border-2 border-white rounded-full flex items-center justify-center cursor-pointer touch-none z-20 shadow-[0_0_10px_rgba(0,0,0,0.5)]"><div class="w-3 h-3 bg-white rounded-full"></div></div>
             </div>
             
-            <!-- Status Footer -->
             <div class="bg-gray-800 p-4 border-t border-gray-700 text-center text-xs text-gray-400 shadow-[0_-10px_20px_rgba(0,0,0,0.2)] z-10">
                 Drag the corners to accurately match the document edges.
                 <div id="cvStatus" class="mt-1 font-semibold text-yellow-400 transition-colors">AI Engine Loading...</div>
@@ -208,9 +211,10 @@
                     <i class="ph ph-image text-2xl"></i>
                     <span class="text-xs font-semibold">Save JPG</span>
                 </button>
+                <!-- Drive button styling changes based on network status via JS -->
                 <button id="triggerDriveBtn" class="flex flex-col items-center gap-1.5 p-3 text-blue-400 hover:text-blue-300 rounded-xl hover:bg-gray-700 transition-colors">
-                    <i class="ph ph-cloud-arrow-up text-2xl"></i>
-                    <span class="text-xs font-semibold">Drive Upload</span>
+                    <i id="driveBtnIcon" class="ph ph-cloud-arrow-up text-2xl"></i>
+                    <span id="driveBtnText" class="text-xs font-semibold">Drive Upload</span>
                 </button>
             </div>
         </div>
@@ -268,10 +272,37 @@
         let currentFacingMode = 'environment';
         let stream = null;
         let isRegisterMode = false;
+        let isFlashOn = false;
         window.cvReady = window.cvReady || false;
 
         const el = id => document.getElementById(id);
         
+        // --- OFFLINE / ONLINE DETECTION ---
+        function updateNetworkStatus() {
+            const isOnline = navigator.onLine;
+            
+            if (!isOnline) {
+                el('offlineAuthIndicator').classList.remove('hide');
+                el('headerOfflineIcon').classList.remove('hide');
+                el('triggerDriveBtn').classList.replace('text-blue-400', 'text-gray-500');
+                el('triggerDriveBtn').classList.replace('hover:text-blue-300', 'hover:text-gray-400');
+                el('driveBtnIcon').classList.replace('ph-cloud-arrow-up', 'ph-cloud-slash');
+                el('viewDriveBtn').classList.replace('text-blue-400', 'text-gray-500');
+                el('viewDriveBtn').classList.replace('hover:text-blue-300', 'hover:text-gray-400');
+            } else {
+                el('offlineAuthIndicator').classList.add('hide');
+                el('headerOfflineIcon').classList.add('hide');
+                el('triggerDriveBtn').classList.replace('text-gray-500', 'text-blue-400');
+                el('triggerDriveBtn').classList.replace('hover:text-gray-400', 'hover:text-blue-300');
+                el('driveBtnIcon').classList.replace('ph-cloud-slash', 'ph-cloud-arrow-up');
+                el('viewDriveBtn').classList.replace('text-gray-500', 'text-blue-400');
+                el('viewDriveBtn').classList.replace('hover:text-gray-400', 'hover:text-blue-300');
+            }
+        }
+        window.addEventListener('online', () => { updateNetworkStatus(); showToast("Back Online! Drive Sync available.", "success"); });
+        window.addEventListener('offline', () => { updateNetworkStatus(); showToast("You are offline. Saving locally only.", "error"); });
+        updateNetworkStatus();
+
         function showToast(msg, type = 'info') {
             const t = el('toast');
             t.textContent = msg;
@@ -297,34 +328,21 @@
         // ==========================================
         // LOGIN / REGISTRATION LOGIC
         // ==========================================
-        
-        // Show/Hide Password Toggle Function
         function setupPasswordToggle(inputId, btnId) {
-            const input = el(inputId);
-            const btn = el(btnId);
-            const icon = btn.querySelector('i');
-            
+            const input = el(inputId); const btn = el(btnId); const icon = btn.querySelector('i');
             btn.addEventListener('click', () => {
                 if (input.type === 'password') {
-                    input.type = 'text';
-                    icon.classList.remove('ph-eye');
-                    icon.classList.add('ph-eye-slash');
-                    btn.classList.add('text-blue-400');
+                    input.type = 'text'; icon.classList.remove('ph-eye'); icon.classList.add('ph-eye-slash'); btn.classList.add('text-blue-400');
                 } else {
-                    input.type = 'password';
-                    icon.classList.remove('ph-eye-slash');
-                    icon.classList.add('ph-eye');
-                    btn.classList.remove('text-blue-400');
+                    input.type = 'password'; icon.classList.remove('ph-eye-slash'); icon.classList.add('ph-eye'); btn.classList.remove('text-blue-400');
                 }
             });
         }
         setupPasswordToggle('passwordInput', 'togglePasswordBtn');
         setupPasswordToggle('confirmPasswordInput', 'toggleConfirmPasswordBtn');
 
-        // Switch between Login and Register views
         el('toggleAuthModeBtn').addEventListener('click', () => {
             isRegisterMode = !isRegisterMode;
-            
             if (isRegisterMode) {
                 el('authTitle').textContent = "Create Account";
                 el('authSubtitle').textContent = "Register a new secure username and password.";
@@ -341,7 +359,7 @@
                 el('toggleAuthModeBtn').textContent = "Need an account? Register";
                 el('authIconContainer').classList.replace('bg-green-600', 'bg-blue-600');
                 el('authIcon').className = "ph ph-lock-key text-3xl text-white";
-                el('confirmPasswordInput').value = ""; // Clear on switch
+                el('confirmPasswordInput').value = "";
             }
         });
 
@@ -350,9 +368,8 @@
                 el('loginOverlay').classList.add('hide');
                 const userInitial = currentUser.charAt(0).toUpperCase();
                 const headerInitialEl = document.querySelector('#cameraView header .w-8');
-                const headerNameEl = document.querySelector('#cameraView header span');
+                el('headerUsername').textContent = currentUser;
                 if (headerInitialEl) headerInitialEl.textContent = userInitial;
-                if (headerNameEl) headerNameEl.textContent = currentUser;
                 initCamera();
             }
         }
@@ -364,14 +381,26 @@
 
             if (userVal.length < 3) return showToast("Username must be at least 3 characters", "error");
             if (passVal.length < 4) return showToast("Password must be at least 4 characters", "error");
-            
-            if (isRegisterMode && passVal !== confirmPassVal) {
-                return showToast("Passwords do not match!", "error");
-            }
+            if (isRegisterMode && passVal !== confirmPassVal) return showToast("Passwords do not match!", "error");
 
             if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) {
-                // If user is just testing the UI without a script:
-                return alert("Please add your Apps Script URL to the code to securely connect to Drive.");
+                return alert("Please add your Apps Script URL to securely connect to Drive.");
+            }
+
+            if (!navigator.onLine) {
+                if (isRegisterMode) return showToast("Cannot create new accounts offline.", "error");
+                
+                const savedUser = localStorage.getItem('docuscan_user');
+                const savedPass = localStorage.getItem('docuscan_pass');
+                
+                if (userVal === savedUser && passVal === savedPass) {
+                    showToast("Offline Login Successful", "success");
+                    currentUser = userVal; currentPassword = passVal;
+                    checkLogin();
+                } else {
+                    showToast("Offline: Incorrect credentials", "error");
+                }
+                return;
             }
 
             el('loginBtnText').textContent = isRegisterMode ? "Registering..." : "Authenticating...";
@@ -379,12 +408,9 @@
             el('loginBtn').disabled = true;
 
             try {
-                // We send either 'register' or 'auth' to your backend Apps Script
                 const actionType = isRegisterMode ? 'register' : 'auth';
-                
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ action: actionType, username: userVal, password: passVal }) 
+                    method: 'POST', body: JSON.stringify({ action: actionType, username: userVal, password: passVal }) 
                 });
                 const result = await response.json();
                 
@@ -398,7 +424,7 @@
                     showToast(result.error || "Authentication failed", "error");
                 }
             } catch (err) { 
-                showToast("Network error. Try again.", "error"); 
+                showToast("Network error. Try going offline.", "error"); 
             } finally { 
                 el('loginBtnText').textContent = isRegisterMode ? "Register & Access" : "Access My Scanner"; 
                 el('loginSpinner').classList.add('hide'); 
@@ -408,10 +434,7 @@
 
         el('logoutBtn').addEventListener('click', () => {
             currentUser = ""; currentPassword = "";
-            localStorage.removeItem('docuscan_user'); localStorage.removeItem('docuscan_pass');
             el('usernameInput').value = ''; el('passwordInput').value = ''; el('confirmPasswordInput').value = '';
-            
-            // Reset to Login mode on logout
             if(isRegisterMode) el('toggleAuthModeBtn').click();
             
             scannedPages = []; viewerIndex = 0; updateUI();
@@ -423,32 +446,80 @@
         if (!currentUser) el('loginOverlay').classList.remove('hide'); else checkLogin();
 
         // ==========================================
-        // CAMERA LOGIC
+        // CAMERA & FLASH LOGIC
         // ==========================================
         async function initCamera() {
             if (!currentUser) return;
-            if (stream) stream.getTracks().forEach(track => track.stop());
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } } });
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: currentFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } } 
+                });
                 el('videoElement').srcObject = stream;
+                
+                // Check if device supports torch/flash
+                const track = stream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities ? track.getCapabilities() : null;
+                
+                if (capabilities && capabilities.torch) {
+                    el('toggleFlashBtn').classList.remove('hide');
+                    isFlashOn = false; // reset state
+                    updateFlashIconUI();
+                } else {
+                    el('toggleFlashBtn').classList.add('hide');
+                    isFlashOn = false;
+                }
             } catch (err) { showToast("Cannot access camera", "error"); }
         }
 
-        el('switchCameraBtn').addEventListener('click', () => { currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment'; initCamera(); });
+        function updateFlashIconUI() {
+            const icon = el('flashIcon');
+            const btn = el('toggleFlashBtn');
+            if (isFlashOn) {
+                icon.classList.remove('ph-flashlight');
+                icon.classList.add('ph-flashlight-fill');
+                btn.classList.add('text-yellow-400');
+                btn.classList.remove('text-gray-300');
+            } else {
+                icon.classList.remove('ph-flashlight-fill');
+                icon.classList.add('ph-flashlight');
+                btn.classList.remove('text-yellow-400');
+                btn.classList.add('text-gray-300');
+            }
+        }
+
+        el('toggleFlashBtn').addEventListener('click', async () => {
+            if (!stream) return;
+            const track = stream.getVideoTracks()[0];
+            try {
+                isFlashOn = !isFlashOn;
+                await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
+                updateFlashIconUI();
+            } catch (err) {
+                showToast("Failed to toggle flash", "error");
+                isFlashOn = !isFlashOn; // revert state on failure
+                updateFlashIconUI();
+            }
+        });
+
+        el('switchCameraBtn').addEventListener('click', () => { 
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment'; 
+            initCamera(); 
+        });
 
         el('captureBtn').addEventListener('click', () => {
-            const video = el('videoElement');
-            const canvas = el('canvasElement');
+            const video = el('videoElement'); const canvas = el('canvasElement');
             const flash = document.createElement('div');
             flash.className = 'absolute inset-0 bg-white z-50 transition-opacity duration-300 pointer-events-none opacity-100';
             el('cameraView').appendChild(flash);
-            setTimeout(() => flash.classList.add('opacity-0'), 50);
-            setTimeout(() => flash.remove(), 350);
+            setTimeout(() => flash.classList.add('opacity-0'), 50); setTimeout(() => flash.remove(), 350);
 
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
             initCrop(canvas);
         });
 
@@ -458,56 +529,46 @@
         let currentCropCanvas = null;
         let cropImgBaseW = 0; let cropImgBaseH = 0;
         let cropScale = 1; let cropOffsetX = 0; let cropOffsetY = 0;
-        let activePtIndex = -1;
-        let cropPts = []; 
+        let activePtIndex = -1; let cropPts = []; 
 
         function initCrop(canvas) {
-            el('cameraView').classList.add('hide');
-            el('cropView').classList.remove('hide');
-            
-            currentCropCanvas = canvas;
-            cropImgBaseW = canvas.width;
-            cropImgBaseH = canvas.height;
+            // Turn off flash if it was left on after taking the picture
+            if (isFlashOn && stream) {
+                isFlashOn = false;
+                stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: false }] }).catch(()=>{});
+                updateFlashIconUI();
+            }
+
+            el('cameraView').classList.add('hide'); el('cropView').classList.remove('hide');
+            currentCropCanvas = canvas; cropImgBaseW = canvas.width; cropImgBaseH = canvas.height;
             el('cropImage').src = canvas.toDataURL('image/jpeg', 0.8);
 
             let detectedPts = null;
             if (window.cvReady) {
                 showToast("Scanning for document edges...", "info");
-                setTimeout(() => {
-                    detectedPts = findDocumentCorners(canvas);
-                    setupCropUI(detectedPts);
-                }, 50);
-            } else {
-                setupCropUI(null);
-            }
+                setTimeout(() => { detectedPts = findDocumentCorners(canvas); setupCropUI(detectedPts); }, 50);
+            } else { setupCropUI(null); }
         }
 
         function setupCropUI(detectedPts) {
             if (detectedPts && detectedPts.length === 4) {
-                cropPts = detectedPts;
-                showToast("Document detected!", "success");
+                cropPts = detectedPts; showToast("Document detected!", "success");
             } else {
                 let mw = cropImgBaseW * 0.1; let mh = cropImgBaseH * 0.1;
                 cropPts = [ {x: mw, y: mh}, {x: cropImgBaseW - mw, y: mh}, {x: cropImgBaseW - mw, y: cropImgBaseH - mh}, {x: mw, y: cropImgBaseH - mh} ];
                 if(window.cvReady) showToast("Could not auto-detect edges. Adjust manually.", "info");
             }
-            
             el('cropImage').onload = () => { calcCropBounds(); renderCropUI(); };
-            window.removeEventListener('resize', resizeCrop);
-            window.addEventListener('resize', resizeCrop);
+            window.removeEventListener('resize', resizeCrop); window.addEventListener('resize', resizeCrop);
         }
 
         function resizeCrop() { if(!el('cropView').classList.contains('hide')) { calcCropBounds(); renderCropUI(); } }
 
         function calcCropBounds() {
-            let container = el('cropContainer');
-            let cw = container.clientWidth; let ch = container.clientHeight;
-            
+            let container = el('cropContainer'); let cw = container.clientWidth; let ch = container.clientHeight;
             cropScale = Math.min(cw / cropImgBaseW, ch / cropImgBaseH);
             let scaledW = cropImgBaseW * cropScale; let scaledH = cropImgBaseH * cropScale;
-            
             cropOffsetX = (cw - scaledW) / 2; cropOffsetY = (ch - scaledH) / 2;
-            
             el('cropImage').style.width = `${scaledW}px`; el('cropImage').style.height = `${scaledH}px`;
             el('cropImage').style.left = `${cropOffsetX}px`; el('cropImage').style.top = `${cropOffsetY}px`;
         }
@@ -515,10 +576,8 @@
         function renderCropUI() {
             let svgPts = cropPts.map(p => `${p.x * cropScale + cropOffsetX},${p.y * cropScale + cropOffsetY}`).join(" ");
             el('cropPolygon').setAttribute('points', svgPts);
-            
             for(let i=0; i<4; i++) {
-                let sx = cropPts[i].x * cropScale + cropOffsetX;
-                let sy = cropPts[i].y * cropScale + cropOffsetY;
+                let sx = cropPts[i].x * cropScale + cropOffsetX; let sy = cropPts[i].y * cropScale + cropOffsetY;
                 el('pt'+i).style.transform = `translate(${sx}px, ${sy}px)`;
             }
         }
@@ -527,19 +586,15 @@
 
         for(let i=0; i<4; i++) {
             const startDrag = (e) => { e.preventDefault(); activePtIndex = i; };
-            el('pt'+i).addEventListener('mousedown', startDrag);
-            el('pt'+i).addEventListener('touchstart', startDrag, {passive: false});
+            el('pt'+i).addEventListener('mousedown', startDrag); el('pt'+i).addEventListener('touchstart', startDrag, {passive: false});
         }
 
         const moveDrag = (e) => {
             if (activePtIndex === -1) return;
             e.preventDefault();
-            let coords = getEvtCoords(e);
-            let rect = el('cropContainer').getBoundingClientRect();
-            
+            let coords = getEvtCoords(e); let rect = el('cropContainer').getBoundingClientRect();
             let sx = coords.x - rect.left; let sy = coords.y - rect.top;
             let imgX = (sx - cropOffsetX) / cropScale; let imgY = (sy - cropOffsetY) / cropScale;
-            
             imgX = Math.max(0, Math.min(imgX, cropImgBaseW)); imgY = Math.max(0, Math.min(imgY, cropImgBaseH));
             cropPts[activePtIndex] = {x: imgX, y: imgY};
             renderCropUI();
@@ -547,39 +602,27 @@
 
         const endDrag = (e) => { activePtIndex = -1; };
 
-        el('cropContainer').addEventListener('mousemove', moveDrag);
-        el('cropContainer').addEventListener('touchmove', moveDrag, {passive: false});
-        window.addEventListener('mouseup', endDrag);
-        window.addEventListener('touchend', endDrag);
+        el('cropContainer').addEventListener('mousemove', moveDrag); el('cropContainer').addEventListener('touchmove', moveDrag, {passive: false});
+        window.addEventListener('mouseup', endDrag); window.addEventListener('touchend', endDrag);
 
-        el('cancelCropBtn').addEventListener('click', () => {
-            el('cropView').classList.add('hide'); el('cameraView').classList.remove('hide');
-        });
+        el('cancelCropBtn').addEventListener('click', () => { el('cropView').classList.add('hide'); el('cameraView').classList.remove('hide'); });
 
         el('confirmCropBtn').addEventListener('click', () => {
             showToast("Enhancing document...", "info");
             setTimeout(() => {
                 let finalDataUrl = flattenDocument(currentCropCanvas, cropPts);
                 scannedPages.push(finalDataUrl);
-                
                 el('cropView').classList.add('hide'); el('cameraView').classList.remove('hide');
-                updateUI();
-                showToast("Page Scanned!", "success");
+                updateUI(); showToast("Page Scanned!", "success");
             }, 50);
         });
 
-        // --- OpenCV Core Functions ---
         function findDocumentCorners(srcCanvas) {
             if (!window.cvReady) return null;
             try {
-                let src = cv.imread(srcCanvas);
-                let dst = new cv.Mat();
-                
-                let maxSize = 500;
-                let scale = Math.min(maxSize / src.cols, maxSize / src.rows);
-                let dsize = new cv.Size(src.cols * scale, src.rows * scale);
-                cv.resize(src, dst, dsize, 0, 0, cv.INTER_AREA);
-
+                let src = cv.imread(srcCanvas); let dst = new cv.Mat();
+                let scale = Math.min(500 / src.cols, 500 / src.rows);
+                cv.resize(src, dst, new cv.Size(src.cols * scale, src.rows * scale), 0, 0, cv.INTER_AREA);
                 cv.cvtColor(dst, dst, cv.COLOR_RGBA2GRAY, 0);
                 cv.GaussianBlur(dst, dst, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
                 cv.Canny(dst, dst, 75, 200);
@@ -589,18 +632,12 @@
 
                 let maxArea = 0; let bestApprox = null;
                 for (let i = 0; i < contours.size(); ++i) {
-                    let cnt = contours.get(i);
-                    let area = cv.contourArea(cnt);
+                    let cnt = contours.get(i); let area = cv.contourArea(cnt);
                     if (area > 1000) { 
-                        let peri = cv.arcLength(cnt, true);
                         let approx = new cv.Mat();
-                        cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                        cv.approxPolyDP(cnt, approx, 0.02 * cv.arcLength(cnt, true), true);
                         if (approx.rows === 4 && cv.isContourConvex(approx)) {
-                            if (area > maxArea) {
-                                maxArea = area;
-                                if (bestApprox) bestApprox.delete();
-                                bestApprox = approx;
-                            } else approx.delete();
+                            if (area > maxArea) { maxArea = area; if (bestApprox) bestApprox.delete(); bestApprox = approx; } else approx.delete();
                         } else approx.delete();
                     }
                     cnt.delete();
@@ -609,32 +646,21 @@
                 let result = null;
                 if (bestApprox) {
                     result = [];
-                    for (let i = 0; i < 4; i++) {
-                        result.push({ x: bestApprox.data32S[i * 2] / scale, y: bestApprox.data32S[i * 2 + 1] / scale });
-                    }
+                    for (let i = 0; i < 4; i++) result.push({ x: bestApprox.data32S[i * 2] / scale, y: bestApprox.data32S[i * 2 + 1] / scale });
                     bestApprox.delete();
                 }
-
                 src.delete(); dst.delete(); contours.delete(); hierarchy.delete();
-                
                 return result ? orderPoints(result) : null;
-            } catch (err) { console.error("CV Error:", err); return null; }
+            } catch (err) { return null; }
         }
 
         function orderPoints(pts) {
             let rect = new Array(4);
-            let s = pts.map(p => p.x + p.y);
-            let tlIndex = s.indexOf(Math.min(...s)); let brIndex = s.indexOf(Math.max(...s));
+            let s = pts.map(p => p.x + p.y); let tlIndex = s.indexOf(Math.min(...s)); let brIndex = s.indexOf(Math.max(...s));
             rect[0] = pts[tlIndex]; rect[2] = pts[brIndex];
-            
-            let diff = pts.map(p => p.y - p.x);
-            let remaining = [0, 1, 2, 3].filter(i => i !== tlIndex && i !== brIndex);
-            
-            if (diff[remaining[0]] < diff[remaining[1]]) {
-                rect[1] = pts[remaining[0]]; rect[3] = pts[remaining[1]];
-            } else {
-                rect[1] = pts[remaining[1]]; rect[3] = pts[remaining[0]];
-            }
+            let diff = pts.map(p => p.y - p.x); let remaining = [0, 1, 2, 3].filter(i => i !== tlIndex && i !== brIndex);
+            if (diff[remaining[0]] < diff[remaining[1]]) { rect[1] = pts[remaining[0]]; rect[3] = pts[remaining[1]]; } 
+            else { rect[1] = pts[remaining[1]]; rect[3] = pts[remaining[0]]; }
             return rect;
         }
 
@@ -643,31 +669,21 @@
             try {
                 let src = cv.imread(srcCanvas);
                 let tl = pts[0], tr = pts[1], br = pts[2], bl = pts[3];
-                
-                let widthA = Math.hypot(br.x - bl.x, br.y - bl.y);
-                let widthB = Math.hypot(tr.x - tl.x, tr.y - tl.y);
-                let maxWidth = Math.max(widthA, widthB);
-                
-                let heightA = Math.hypot(tr.x - br.x, tr.y - br.y);
-                let heightB = Math.hypot(tl.x - bl.x, tl.y - bl.y);
-                let maxHeight = Math.max(heightA, heightB);
+                let maxWidth = Math.max(Math.hypot(br.x - bl.x, br.y - bl.y), Math.hypot(tr.x - tl.x, tr.y - tl.y));
+                let maxHeight = Math.max(Math.hypot(tr.x - br.x, tr.y - br.y), Math.hypot(tl.x - bl.x, tl.y - bl.y));
 
                 let dst = new cv.Mat();
-                let dsize = new cv.Size(maxWidth, maxHeight);
+                let M = cv.getPerspectiveTransform(
+                    cv.matFromArray(4, 1, cv.CV_32FC2, [ tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y ]),
+                    cv.matFromArray(4, 1, cv.CV_32FC2, [ 0, 0, maxWidth, 0, maxWidth, maxHeight, 0, maxHeight ])
+                );
+                cv.warpPerspective(src, dst, M, new cv.Size(maxWidth, maxHeight), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
 
-                let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [ tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y ]);
-                let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [ 0, 0, maxWidth, 0, maxWidth, maxHeight, 0, maxHeight ]);
-
-                let M = cv.getPerspectiveTransform(srcTri, dstTri);
-                cv.warpPerspective(src, dst, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
-
-                let tmpCanvas = document.createElement('canvas');
-                cv.imshow(tmpCanvas, dst);
+                let tmpCanvas = document.createElement('canvas'); cv.imshow(tmpCanvas, dst);
                 let dataUrl = tmpCanvas.toDataURL('image/jpeg', 0.85);
 
-                src.delete(); dst.delete(); M.delete(); srcTri.delete(); dstTri.delete();
-                return dataUrl;
-            } catch (err) { console.error("Warp Error:", err); return srcCanvas.toDataURL('image/jpeg', 0.85); }
+                src.delete(); dst.delete(); M.delete(); return dataUrl;
+            } catch (err) { return srcCanvas.toDataURL('image/jpeg', 0.85); }
         }
 
         // ==========================================
@@ -700,43 +716,44 @@
 
         async function buildPDF() {
             if (scannedPages.length === 0) throw new Error("No pages");
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ unit: 'in', format: 'letter' });
-            
+            const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: 'in', format: 'letter' });
             for (let i = 0; i < scannedPages.length; i++) {
                 if (i > 0) doc.addPage();
                 const imgProps = doc.getImageProperties(scannedPages[i]);
                 const pdfWidth = doc.internal.pageSize.getWidth(); const pdfHeight = doc.internal.pageSize.getHeight();
                 let imgWidth = pdfWidth; let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
                 if (imgHeight > pdfHeight) { imgHeight = pdfHeight; imgWidth = (imgProps.width * pdfHeight) / imgProps.height; }
-                const x = (pdfWidth - imgWidth) / 2; const y = (pdfHeight - imgHeight) / 2;
-                doc.addImage(scannedPages[i], 'JPEG', x, y, imgWidth, imgHeight);
+                doc.addImage(scannedPages[i], 'JPEG', (pdfWidth - imgWidth) / 2, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight);
             }
             return doc;
         }
 
         el('exportPdfBtn').addEventListener('click', async () => {
-            if(scannedPages.length === 0) return;
-            showToast("Generating PDF...", "info");
+            if(scannedPages.length === 0) return; showToast("Generating PDF...", "info");
             try { const doc = await buildPDF(); doc.save(`DocuScan_${new Date().getTime()}.pdf`); showToast("PDF Downloaded!", "success"); } 
-            catch(e) { showToast("PDF Error", "error"); console.error(e); }
+            catch(e) { showToast("PDF Error", "error"); }
         });
 
         el('exportJpgBtn').addEventListener('click', () => {
             if(scannedPages.length === 0) return;
             const link = document.createElement('a'); link.download = `Page_${viewerIndex + 1}.jpg`; link.href = scannedPages[viewerIndex];
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-            showToast("Image Downloaded!", "success");
+            document.body.appendChild(link); link.click(); document.body.removeChild(link); showToast("Image Downloaded!", "success");
         });
 
         // ==========================================
         // DRIVE UPLOAD LOGIC
         // ==========================================
-        el('triggerDriveBtn').addEventListener('click', () => { if(scannedPages.length === 0) return; el('saveModal').classList.remove('hide'); });
+        el('triggerDriveBtn').addEventListener('click', () => { 
+            if (!navigator.onLine) return showToast("Network unavailable. Please use Save PDF/JPG locally.", "error");
+            if(scannedPages.length === 0) return; 
+            el('saveModal').classList.remove('hide'); 
+        });
+        
         el('cancelSaveBtn').addEventListener('click', () => el('saveModal').classList.add('hide'));
 
         el('confirmSaveBtn').addEventListener('click', async () => {
-            if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) return alert("Please add your Apps Script URL to test Drive features.");
+            if (!navigator.onLine) return showToast("Network disconnected.", "error");
+            if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) return alert("Please add your Apps Script URL.");
             const title = el('docTitleInput').value.trim() || 'Untitled Scan'; const format = el('formatSelect').value;
             el('saveModal').classList.add('hide'); showToast("Preparing file...", "info");
             
@@ -748,16 +765,15 @@
                 showToast("Uploading to Drive...", "info");
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
                 const result = await response.json();
-                
-                if (result.success) showToast("Uploaded successfully!", "success");
-                else throw new Error(result.error);
-            } catch (err) { console.error(err); showToast("Upload failed.", "error"); }
+                if (result.success) showToast("Uploaded successfully!", "success"); else throw new Error(result.error);
+            } catch (err) { showToast("Upload failed.", "error"); }
         });
 
         // ==========================================
         // MY FILES VIEWER LOGIC
         // ==========================================
         el('viewDriveBtn').addEventListener('click', async () => {
+            if (!navigator.onLine) return showToast("Cannot view Drive files offline.", "error");
             if (!GOOGLE_APPS_SCRIPT_URL.includes("script.google.com")) return alert("Please add your Apps Script URL.");
             const container = el('filesListContainer'); el('filesModal').classList.remove('hide');
             container.innerHTML = '<div class="text-center text-gray-400 py-12"><i class="ph ph-spinner animate-spin text-3xl mb-3 text-blue-500"></i><br>Fetching your files...</div>';
@@ -765,7 +781,6 @@
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'list_files', username: currentUser, password: currentPassword }) });
                 const result = await response.json();
-                
                 if (result.success) {
                     if (result.files.length === 0) container.innerHTML = '<div class="text-center text-gray-400 py-10">No files found.</div>';
                     else {
