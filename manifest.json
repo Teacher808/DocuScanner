@@ -1,9 +1,22 @@
 {
-  "name": "DocuScan Pro",
-  "short_name": "DocuScan",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#111827",
-  "icons": [{"src": "[https://cdn-icons-png.flaticon.com/512/3135/3135692.png](https://cdn-icons-png.flaticon.com/512/3135/3135692.png)", "sizes": "512x512", "type": "image/png"}]
+    "name": "DocuScan Pro",
+    "short_name": "DocuScan",
+    "description": "A progressive web app for scanning and syncing documents to Google Drive.",
+    "start_url": "/index.html",
+    "display": "standalone",
+    "background_color": "#111827",
+    "theme_color": "#111827",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Google-drive-logo.svg/512px-Google-drive-logo.svg.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Google-drive-logo.svg/512px-Google-drive-logo.svg.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
 }
