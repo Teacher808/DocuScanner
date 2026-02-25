@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DocuScan Pro</title>
     
     <!-- Web App Manifest for PWA -->
@@ -18,15 +18,22 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
+        /* Force exact viewport fit and prevent all native browser scrolling/zooming */
         html, body { 
-            -webkit-tap-highlight-color: transparent; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
-            height: 100%;
-            height: 100dvh; /* Dynamically sizes to mobile screen, ignoring address bars */
-            overflow: hidden; /* Completely prevents scrolling */
-            overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+            overflow: hidden;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent; 
         }
+        
         .hide { display: none !important; }
         
         /* Toast animations */
@@ -37,24 +44,24 @@
         .toast-animate { animation: slideUp 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans">
+<body class="bg-gray-900 text-white flex flex-col font-sans w-full h-full">
 
-    <!-- Header -->
-    <header class="bg-gray-800 p-4 flex justify-between items-center shadow-md z-10 relative">
+    <!-- Header (Fixed size, won't shrink) -->
+    <header class="flex-shrink-0 bg-gray-800 p-4 flex justify-between items-center shadow-md z-10 relative">
         <div class="flex items-center gap-2">
             <i class="ph ph-scan text-blue-400 text-2xl"></i>
             <h1 class="text-xl font-bold tracking-tight">DocuScan</h1>
         </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 relative flex flex-col min-h-0 w-full">
+    <!-- Main Content Area (Takes remaining exact space) -->
+    <main class="flex-1 relative overflow-hidden w-full h-full">
         
         <!-- View 1: Camera View -->
-        <div id="cameraView" class="flex-1 flex flex-col w-full bg-black overflow-hidden">
+        <div id="cameraView" class="absolute inset-0 flex flex-col w-full h-full bg-black">
             
-            <!-- Camera Scanning Area -->
-            <div class="flex-1 relative w-full overflow-hidden">
+            <!-- Camera Scanning Area (Takes flexible space) -->
+            <div class="flex-1 relative w-full h-full overflow-hidden bg-black">
                 <!-- Start Camera Overlay (Top Layer) -->
                 <div id="startCameraOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-50">
                     <i class="ph ph-scan text-6xl text-gray-500 mb-4"></i>
@@ -75,29 +82,32 @@
                 </div>
 
                 <!-- Target Reticle -->
-                <div class="absolute inset-8 border-2 border-white/30 border-dashed rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
+                <div class="absolute inset-4 sm:inset-12 border-2 border-white/30 border-dashed rounded-xl pointer-events-none flex flex-col justify-between p-4 z-20">
                     <div class="flex justify-between"><div class="w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div><div class="w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div></div>
                     <div class="flex justify-between"><div class="w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div><div class="w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div></div>
                 </div>
             </div>
 
-            <!-- Camera Controls (Dedicated Bottom Bar) -->
-            <div class="h-32 flex-shrink-0 bg-gray-900 flex items-center justify-around px-6 pb-6 pt-2 border-t border-gray-800 z-40">
-                <button id="openGalleryBtn" class="p-3 bg-gray-800 rounded-full hover:bg-gray-700 transition relative">
+            <!-- Camera Controls (Dedicated Bottom Bar - Fixed Height) -->
+            <div class="flex-shrink-0 h-28 sm:h-32 bg-gray-900 flex items-center justify-around px-6 z-40 border-t border-gray-800 relative shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
+                <button id="openGalleryBtn" class="p-3 sm:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition relative">
                     <i class="ph ph-image text-2xl"></i>
                     <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
                 </button>
-                <button id="captureBtn" class="w-16 h-16 bg-white rounded-full border-4 border-gray-400 focus:outline-none hover:bg-gray-200 transition shadow-[0_0_15px_rgba(255,255,255,0.3)]"></button>
-                <button id="reviewBtn" class="p-3 bg-gray-800 rounded-full hover:bg-gray-700 transition relative flex items-center justify-center">
+                
+                <button id="captureBtn" class="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full border-4 border-gray-400 focus:outline-none hover:bg-gray-200 transition shadow-[0_0_15px_rgba(255,255,255,0.3)] flex-shrink-0"></button>
+                
+                <button id="reviewBtn" class="p-3 sm:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition relative flex items-center justify-center">
                     <i class="ph ph-check-circle text-2xl text-blue-400"></i>
-                    <span id="pageCountBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hide">0</span>
+                    <span id="pageCountBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hide shadow-md">0</span>
                 </button>
             </div>
         </div>
 
         <!-- View 2: Preview & Export View -->
-        <div id="previewView" class="flex-1 flex flex-col hide bg-gray-900 h-full min-h-0 overflow-hidden">
-            <div class="flex-1 p-4 flex flex-col items-center justify-center bg-gray-800 overflow-hidden relative">
+        <div id="previewView" class="absolute inset-0 flex flex-col w-full h-full bg-gray-900 hide">
+            <!-- Preview Content (Takes flexible space) -->
+            <div class="flex-1 p-2 sm:p-4 flex flex-col items-center justify-center bg-gray-800 overflow-hidden relative w-full h-full">
                 <!-- Main Preview Image -->
                 <div class="flex-1 w-full flex items-center justify-center min-h-0 relative mb-4">
                     <img id="previewImage" class="max-w-full max-h-full rounded-lg shadow-xl object-contain" src="" alt="Captured scan">
@@ -112,43 +122,43 @@
                 </div>
                 
                 <!-- Multi-page Thumbnail Strip -->
-                <div id="thumbnailStrip" class="w-full h-20 flex gap-3 overflow-x-auto pb-2 snap-x px-2">
+                <div id="thumbnailStrip" class="w-full h-20 flex-shrink-0 flex gap-3 overflow-x-auto pb-2 snap-x px-2">
                     <!-- Thumbnails injected via JS -->
                 </div>
                 
                 <canvas id="canvasElement" class="hide"></canvas>
             </div>
 
-            <!-- Export Controls -->
-            <div class="bg-gray-900 p-4 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative z-20">
+            <!-- Export Controls (Dedicated Bottom Bar - Fixed Height) -->
+            <div class="flex-shrink-0 bg-gray-900 p-4 sm:p-5 rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.3)] flex flex-col gap-3 relative z-20 w-full">
                 
-                <div class="flex justify-between items-center mb-2">
-                    <button id="addPageBtn" class="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium bg-blue-400/10 px-3 py-1.5 rounded-full transition">
+                <div class="flex justify-between items-center mb-1">
+                    <button id="addPageBtn" class="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium bg-blue-400/10 px-3 py-1.5 rounded-full transition text-sm">
                         <i class="ph ph-plus-circle text-lg"></i> Add Pages
                     </button>
-                    <div class="text-sm font-medium text-gray-300">Save Locally</div>
+                    <div class="text-xs sm:text-sm font-medium text-gray-300">Save Locally</div>
                     <div class="w-24"></div> <!-- Spacer for flex alignment -->
                 </div>
 
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-3 gap-2 sm:gap-3">
                     <!-- Save Local -->
-                    <div class="flex flex-col gap-2">
-                        <button onclick="saveLocal('png')" class="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition">
-                            <i class="ph ph-file-png text-2xl text-green-400"></i>
-                            <span class="text-xs font-medium">PNG</span>
+                    <div class="flex flex-col gap-1">
+                        <button onclick="saveLocal('png')" class="bg-gray-800 hover:bg-gray-700 p-2 sm:p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition">
+                            <i class="ph ph-file-png text-xl sm:text-2xl text-green-400"></i>
+                            <span class="text-[10px] sm:text-xs font-medium">PNG</span>
                         </button>
                     </div>
-                    <div class="flex flex-col gap-2">
-                        <button onclick="saveLocal('jpeg')" class="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition">
-                            <i class="ph ph-file-jpg text-2xl text-blue-400"></i>
-                            <span class="text-xs font-medium">JPG</span>
+                    <div class="flex flex-col gap-1">
+                        <button onclick="saveLocal('jpeg')" class="bg-gray-800 hover:bg-gray-700 p-2 sm:p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition">
+                            <i class="ph ph-file-jpg text-xl sm:text-2xl text-blue-400"></i>
+                            <span class="text-[10px] sm:text-xs font-medium">JPG</span>
                         </button>
                     </div>
-                    <div class="flex flex-col gap-2">
-                        <button onclick="saveLocal('pdf')" class="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition relative overflow-hidden">
+                    <div class="flex flex-col gap-1">
+                        <button onclick="saveLocal('pdf')" class="bg-gray-800 hover:bg-gray-700 p-2 sm:p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition relative overflow-hidden">
                             <div class="absolute inset-0 bg-red-500/10"></div>
-                            <i class="ph ph-file-pdf text-2xl text-red-400 relative z-10"></i>
-                            <span class="text-xs relative z-10 font-bold">PDF</span>
+                            <i class="ph ph-file-pdf text-xl sm:text-2xl text-red-400 relative z-10"></i>
+                            <span class="text-[10px] sm:text-xs relative z-10 font-bold">PDF</span>
                         </button>
                     </div>
                 </div>
@@ -156,24 +166,24 @@
                 <hr class="border-gray-700 my-1">
 
                 <div class="flex justify-between items-center">
-                    <div class="text-sm font-medium text-gray-300">Share & Cloud</div>
-                    <select id="exportFormat" class="bg-gray-800 text-white text-xs border border-gray-600 rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition">
+                    <div class="text-xs sm:text-sm font-medium text-gray-300">Share & Cloud</div>
+                    <select id="exportFormat" class="bg-gray-800 text-white text-[10px] sm:text-xs border border-gray-600 rounded-lg px-2 py-1 outline-none focus:border-blue-500 transition">
                         <option value="pdf">Send as PDF</option>
                         <option value="jpeg">Send as Image(s)</option>
                     </select>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3 mt-1">
+                <div class="grid grid-cols-2 gap-2 sm:gap-3">
                     <!-- Share via Android Share Sheet -->
-                    <button id="shareBtn" class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl flex items-center justify-center gap-2 transition font-medium">
-                        <i class="ph ph-share-network text-xl"></i>
+                    <button id="shareBtn" class="bg-blue-600 hover:bg-blue-500 text-white p-2.5 sm:p-3 rounded-xl flex items-center justify-center gap-2 transition text-sm font-medium">
+                        <i class="ph ph-share-network text-lg sm:text-xl"></i>
                         <span>Share</span>
                     </button>
                     
                     <!-- Save to Drive -->
-                    <button id="driveBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl flex items-center justify-center gap-2 transition font-medium">
-                        <i class="ph ph-google-drive-logo text-xl"></i>
-                        <span>Save to Drive</span>
+                    <button id="driveBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 sm:p-3 rounded-xl flex items-center justify-center gap-2 transition text-sm font-medium">
+                        <i class="ph ph-google-drive-logo text-lg sm:text-xl"></i>
+                        <span>Drive</span>
                     </button>
                 </div>
             </div>
@@ -220,7 +230,7 @@
                 error: 'bg-red-600',
                 info: 'bg-gray-700'
             };
-            toast.className = `${colors[type]} text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium toast-animate pointer-events-auto`;
+            toast.className = `${colors[type]} text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium toast-animate pointer-events-auto max-w-xs text-center`;
             toast.textContent = message;
             
             const container = document.getElementById('toastContainer');
@@ -320,7 +330,9 @@
             // Add a quick flash effect
             const flash = document.createElement('div');
             flash.className = 'absolute inset-0 bg-white opacity-50 z-50 transition-opacity duration-300';
-            document.querySelector('.relative.w-full.overflow-hidden').appendChild(flash);
+            
+            // Append flash to the video wrapper
+            videoElement.parentElement.appendChild(flash);
             setTimeout(() => flash.remove(), 300);
 
             captureImage(videoElement, videoElement.videoWidth, videoElement.videoHeight);
