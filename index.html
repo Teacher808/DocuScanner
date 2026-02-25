@@ -68,8 +68,13 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-400 mb-1 ml-1">Password</label>
-                    <input type="password" id="passwordInput" required placeholder="••••••••"
-                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                    <div class="relative">
+                        <input type="password" id="passwordInput" required placeholder="••••••••"
+                               class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors pr-12">
+                        <button type="button" id="togglePasswordBtn" class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors">
+                            <i class="ph ph-eye text-xl" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
                     <i class="ph ph-sign-in"></i> Sign In
@@ -165,7 +170,7 @@
         // CONFIGURATION
         // ==========================================
         // Replace this URL with your actual deployed Google Apps Script Web App URL
-        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_REPLACE_THIS_WITH_YOUR_URL/exec";
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/execc";
 
         // ==========================================
         // STATE & DOM ELEMENTS
@@ -219,14 +224,24 @@
             toastTimeout = setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translate(-50%, -20px) scale(0.95)';
-            }, 3000);
-        }
+        }, 3000);
+    }
 
-        // ==========================================
-        // AUTHENTICATION LOGIC
-        // ==========================================
-        el('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
+    // ==========================================
+    // AUTHENTICATION LOGIC
+    // ==========================================
+    const togglePasswordBtn = el('togglePasswordBtn');
+    const togglePasswordIcon = el('togglePasswordIcon');
+    const passwordInput = el('passwordInput');
+
+    togglePasswordBtn.addEventListener('click', () => {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        togglePasswordIcon.className = type === 'password' ? 'ph ph-eye text-xl' : 'ph ph-eye-slash text-xl';
+    });
+
+    el('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
             const username = el('usernameInput').value.trim();
             const password = el('passwordInput').value.trim();
             
@@ -428,7 +443,7 @@
                 };
 
                 // NOTE: If testing without a real URL, it will fail here.
-                if(GOOGLE_APPS_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbz_adQ0q47SnGeELWbCGyb9-T7qjkBf0yRJYtYPdmeSvX3DB0RkStQCXXxRknPXCxal/exec')){
+                if(GOOGLE_APPS_SCRIPT_URL.includes('REPLACE_THIS_WITH_YOUR_URL')){
                     throw new Error("Please configure your Google Apps Script Web App URL in the code.");
                 }
 
